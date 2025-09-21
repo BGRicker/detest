@@ -193,9 +193,16 @@ func commandArgs(shellSpec string, script string, env []string) ([]string, error
 		// This ensures tools like asdf, rbenv, etc. work properly
 		asdfInit := ""
 		if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
-			asdfInit = fmt.Sprintf("source %s/asdf.sh && ", asdfDir)
-		} else if _, err := os.Stat("/Users/benricker/.asdf/asdf.sh"); err == nil {
-			asdfInit = "source /Users/benricker/.asdf/asdf.sh && "
+			// Use filepath.Join for safe path construction and validate the path
+			asdfPath := filepath.Join(asdfDir, "asdf.sh")
+			if _, err := os.Stat(asdfPath); err == nil {
+				asdfInit = fmt.Sprintf("source %s && ", asdfPath)
+			}
+		} else if home, err := os.UserHomeDir(); err == nil {
+			asdfPath := filepath.Join(home, ".asdf", "asdf.sh")
+			if _, err := os.Stat(asdfPath); err == nil {
+				asdfInit = fmt.Sprintf("source %s && ", asdfPath)
+			}
 		}
 		return []string{"bash", "-l", "-c", asdfInit + script}, nil
 	}
