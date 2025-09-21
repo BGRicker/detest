@@ -25,6 +25,9 @@ $ detest run --job test --only-step "Lint" --format json
 
 # Stream command output as it runs
 $ detest run --verbose
+
+# Allow privileged commands (e.g., sudo/apt-get) when absolutely necessary
+$ DETEST_ALLOW_PRIVILEGED=1 detest run
 ```
 
 Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept multiple values and support substring or `/regex/` matches. When no workflows are provided, Detest automatically loads `.github/workflows/*.yml`/`*.yaml` in lexicographic order. Execution stops with a non-zero exit code if any step fails, but all remaining steps continue to run so you see the full picture.
@@ -47,7 +50,10 @@ dry_run: false
 verbose: false
 format: pretty             # pretty|json
 warn:
-  version_mismatch: false  # reserved for future version checks
+  version_mismatch: true   # warn when local Ruby/Node major.minor differs
+privileged_command_patterns:
+  - (?i)^sudo\b
+  - (?i)\bapt-get\b
 ```
 
 ## Current Status
@@ -56,6 +62,7 @@ warn:
 - ✅ Sequential execution with env/shell/working-directory resolution
 - ✅ Pretty & JSON reporters with per-step duration/excerpts
 - ✅ Dry-run, verbose streaming, job/step filters, repeatable `--workflow`
-- 🚧 Upcoming: cross-language version warnings, additional CI providers, matrix & services support
+- 🚧 Upcoming: richer runtime pre-flight checks, additional CI providers, matrix & services support
+  - Version mismatch warnings are enabled by default; set `warn.version_mismatch: false` to silence them.
 
 Want to dig in? Run `go test ./...` to exercise the parser, runner, and CLI tests.

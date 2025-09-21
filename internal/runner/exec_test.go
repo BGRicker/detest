@@ -154,6 +154,51 @@ func TestRunnerTailCapture(t *testing.T) {
 	}
 }
 
+func TestRunnerSkipsPrivilegedCommands(t *testing.T) {
+	root := t.TempDir()
+	r := New(Options{Root: root})
+	wf := sampleWorkflow("sudo apt-get update")
+
+	results, summary, err := r.Run([]provider.Workflow{wf})
+	if err != nil {
+		t.Fatalf("runner Run: %v", err)
+	}
+	if summary.Skipped != 1 {
+		t.Fatalf("expected skipped count 1, got %+v", summary)
+	}
+	if results[0].Status != "skipped" {
+		t.Fatalf("expected step skipped, got %+v", results[0])
+	}
+	if !strings.Contains(results[0].Stderr, "pattern") {
+		t.Fatalf("expected skip message referencing pattern, got %q", results[0].Stderr)
+	}
+}
+
+func TestRunnerAllowsPrivilegedCommands(t *testing.T) {
+	root := t.TempDir()
+	r := New(Options{Root: root, AllowPrivileged: true})
+	wf := sampleWorkflow("sudo apt-get update")
+
+	results, summary, err := r.Run([]provider.Workflow{wf})
+	if err != nil {
+		t.Fatalf("runner Run: %v", err)
+	}
+	if summary.Skipped != 0 {
+		t.Fatalf("expected no skipped steps when AllowPrivileged=true, got %+v", summary)
+	}
+	if results[0].Status == "skipped" {
+		t.Fatalf("expected step not skipped when AllowPrivileged=true, got %+v", results[0])
+	}
+}
+
+func TestSimplifyErrorBundler(t *testing.T) {
+	msg := "Could not find 'bundler' (2.6.9) required by your Gemfile.lock"
+	simplified := simplifyError(msg)
+	if !strings.Contains(simplified, "gem install bundler:2.6.9") {
+		t.Fatalf("expected actionable bundler message, got %q", simplified)
+	}
+}
+
 func sampleWorkflow(script string) provider.Workflow {
 	return provider.Workflow{
 		Path: "wf.yml",

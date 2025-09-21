@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/bgricker/detest/internal/config"
@@ -34,13 +35,17 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	allowPrivileged := os.Getenv("DETEST_ALLOW_PRIVILEGED") == "1"
+
 	runOpts := runner.Options{
-		Root:      root,
-		Stdout:    cmd.OutOrStdout(),
-		Stderr:    cmd.ErrOrStderr(),
-		Verbose:   cfg.Verbose,
-		DryRun:    cfg.DryRun,
-		TailLines: 20,
+		Root:               root,
+		Stdout:             cmd.OutOrStdout(),
+		Stderr:             cmd.ErrOrStderr(),
+		Verbose:            cfg.Verbose,
+		DryRun:             cfg.DryRun,
+		TailLines:          20,
+		AllowPrivileged:    allowPrivileged,
+		PrivilegedPatterns: append([]string{}, cfg.PrivilegedCommandPatterns...),
 	}
 	execRunner := runner.New(runOpts)
 	results, summary, err := execRunner.Run(filtered.workflows)

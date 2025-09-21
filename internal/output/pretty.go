@@ -90,6 +90,9 @@ func (p *PrettyRenderer) RenderResults(results []report.StepResult, summary repo
 		if res.Status == "failed" && res.Stderr != "" {
 			fmt.Fprintf(&buffer, "      stderr: %s\n", indent(res.Stderr, "      "))
 		}
+		if res.Status == "skipped" && res.Stderr != "" {
+			fmt.Fprintf(&buffer, "      note: %s\n", indent(res.Stderr, "      "))
+		}
 		if res.DryRun {
 			fmt.Fprintf(&buffer, "      command: %s\n", res.StepRun)
 		}

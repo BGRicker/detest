@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -19,14 +20,16 @@ import (
 
 // Options configure how the runner executes steps.
 type Options struct {
-	Root      string
-	Stdout    io.Writer
-	Stderr    io.Writer
-	Verbose   bool
-	DryRun    bool
-	TailLines int
-	Env       []string
-	Now       func() time.Time
+	Root               string
+	Stdout             io.Writer
+	Stderr             io.Writer
+	Verbose            bool
+	DryRun             bool
+	TailLines          int
+	Env                []string
+	Now                func() time.Time
+	AllowPrivileged    bool
+	PrivilegedPatterns []string
 }
 
 // Runner executes workflow steps sequentially.
@@ -51,6 +54,10 @@ func New(opts Options) *Runner {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
+	if opts.PrivilegedPatterns == nil {
+		opts.PrivilegedPatterns = DefaultPrivilegedPatterns()
+	}
+	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
 	return &Runner{opts: opts}
 }
 
@@ -75,6 +82,14 @@ func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report
 					StepName:     step.Name,
 					StepRun:      step.Run,
 					DryRun:       r.opts.DryRun,
+				}
+
+				if msg, skip := shouldSkipStep(step.Run, r.opts); skip {
+					result.Status = "skipped"
+					result.Stderr = msg
+					summary.Skipped++
+					results = append(results, result)
+					continue
 				}
 
 				if r.opts.DryRun {
@@ -145,7 +160,7 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 
 	err = cmd.Run()
 	result.Stdout = stdoutBuf.String()
-	result.Stderr = stderrBuf.String()
+	result.Stderr = simplifyError(stderrBuf.String())
 	result.ExitCode = exitCode(err)
 
 	if err != nil {
@@ -283,4 +298,63 @@ func tailLines(input string, maxLines int) string {
 		return strings.Join(lines, "\n")
 	}
 	return strings.Join(lines[len(lines)-maxLines:], "\n")
+}
+
+func shouldSkipStep(script string, opts Options) (string, bool) {
+	if opts.AllowPrivileged {
+		return "", false
+	}
+	for _, pattern := range opts.PrivilegedPatterns {
+		if pattern == "" {
+			continue
+		}
+		matched, err := regexp.MatchString(pattern, script)
+		if err != nil {
+			continue
+		}
+		if matched {
+			return fmt.Sprintf("skipped privileged command matching pattern %q; set DETEST_ALLOW_PRIVILEGED=1 to run", pattern), true
+		}
+	}
+	return "", false
+}
+
+var bundlerVersionRegex = regexp.MustCompile(`bundler' \((\d+\.\d+(?:\.\d+)?)\)`)
+
+func simplifyError(stderr string) string {
+	lower := strings.ToLower(stderr)
+	if strings.Contains(lower, "could not find 'bundler'") {
+		version := parseBundlerVersion(stderr)
+		if version != "" {
+			return fmt.Sprintf("missing bundler %s; run `gem install bundler:%s` or `bundle update --bundler`", version, version)
+		}
+		return "missing bundler; run `gem install bundler` or `bundle update --bundler`"
+	}
+	return stderr
+}
+
+func parseBundlerVersion(stderr string) string {
+	match := bundlerVersionRegex.FindStringSubmatch(stderr)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
+}
+
+func DefaultPrivilegedPatterns() []string {
+	return []string{
+		`(?i)^sudo\b`,           // sudo commands
+		`(?i)\bapt-get\b`,       // Debian/Ubuntu package manager
+		`(?i)\bapt\b`,           // Modern apt command
+		`(?i)\byum\b`,           // Red Hat package manager
+		`(?i)\bdnf\b`,           // Fedora package manager
+		`(?i)\bzypper\b`,        // SUSE package manager
+		`(?i)\bpacman\b`,        // Arch package manager
+		`(?i)\bbrew\b`,          // macOS package manager (can require sudo)
+		`(?i)\bchoco\b`,         // Windows package manager
+		`(?i)\bwinget\b`,        // Windows package manager
+		`(?i)\bpip\s+install\s+--user`, // pip install --user (can require sudo)
+		`(?i)\bnpm\s+install\s+-g`,     // npm install -g (can require sudo)
+		`(?i)\byarn\s+global`,          // yarn global (can require sudo)
+	}
 }
