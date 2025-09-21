@@ -399,10 +399,10 @@ func getAsdfInit(env []string, shellBase string) string {
 		// fish uses different syntax and file extension
 		fishPath := strings.TrimSuffix(asdfPath, ".sh") + ".fish"
 		if _, err := os.Stat(fishPath); err == nil {
-			return fmt.Sprintf("source %q; and ", fishPath)
+			return fmt.Sprintf("source %q; ", fishPath)
 		}
 		// Fallback to bash script if fish version doesn't exist
-		return fmt.Sprintf("source %q; and ", asdfPath)
+		return fmt.Sprintf("source %q; ", asdfPath)
 	default:
 		// For unknown shells, skip asdf initialization to avoid errors
 		return ""
