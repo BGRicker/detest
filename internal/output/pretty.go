@@ -11,14 +11,36 @@ import (
 	"github.com/bgricker/detest/internal/report"
 )
 
+// StreamingRenderer interface for real-time step updates.
+type StreamingRenderer interface {
+	InitializeWorkflow(workflowName, jobName string, stepCount int) error
+	StartStep(stepName string) error
+	CompleteStep(stepName string, status string, duration time.Duration, stderr string) error
+	RenderSummary(summary report.Summary) error
+}
+
 // PrettyRenderer renders execution results in a human-friendly format.
 type PrettyRenderer struct {
 	out io.Writer
 }
 
+// StreamingPrettyRenderer renders execution results with real-time updates like GitHub CI.
+type StreamingPrettyRenderer struct {
+	out io.Writer
+	stepCount int
+	currentStep int
+	workflowName string
+	jobName string
+}
+
 // NewPretty creates a PrettyRenderer writing to the provided writer.
 func NewPretty(out io.Writer) *PrettyRenderer {
 	return &PrettyRenderer{out: out}
+}
+
+// NewStreamingPretty creates a StreamingPrettyRenderer for real-time updates.
+func NewStreamingPretty(out io.Writer) *StreamingPrettyRenderer {
+	return &StreamingPrettyRenderer{out: out}
 }
 
 // RenderList renders workflows/jobs/steps in list mode.
@@ -103,6 +125,66 @@ func (p *PrettyRenderer) RenderResults(results []report.StepResult, summary repo
 	}
 
 	fmt.Fprintf(p.out, "SUMMARY: %d passed, %d failed, %d skipped (%s)\n", summary.Passed, summary.Failed, summary.Skipped, formatDuration(summary.Duration))
+	return nil
+}
+
+// InitializeWorkflow sets up the streaming renderer for a workflow.
+func (s *StreamingPrettyRenderer) InitializeWorkflow(workflowName, jobName string, stepCount int) error {
+	s.workflowName = workflowName
+	s.jobName = jobName
+	s.stepCount = stepCount
+	s.currentStep = 0
+	
+	fmt.Fprintf(s.out, "Workflow %s\n", workflowName)
+	fmt.Fprintf(s.out, "  Job %s\n", jobName)
+	return nil
+}
+
+// StartStep shows a step as running with a green circle.
+func (s *StreamingPrettyRenderer) StartStep(stepName string) error {
+	s.currentStep++
+	label := stepName
+	if label == "" {
+		label = "step"
+	}
+	fmt.Fprintf(s.out, "    🟢 %s\n", label)
+	return nil
+}
+
+// CompleteStep updates a step's status with checkmark or X.
+func (s *StreamingPrettyRenderer) CompleteStep(stepName string, status string, duration time.Duration, stderr string) error {
+	label := stepName
+	if label == "" {
+		label = "step"
+	}
+	
+	var emoji string
+	switch status {
+	case "passed":
+		emoji = "✅"
+	case "failed":
+		emoji = "❌"
+	case "skipped":
+		emoji = "⏭️"
+	default:
+		emoji = "❓"
+	}
+	
+	// Move cursor up one line and overwrite the running status
+	fmt.Fprintf(s.out, "\033[1A\033[K") // Move up, clear line
+	fmt.Fprintf(s.out, "    %s %s (%s)\n", emoji, label, formatDuration(duration))
+	
+	// Only show stderr for failed steps
+	if status == "failed" && stderr != "" {
+		fmt.Fprintf(s.out, "      %s\n", indent(stderr, "      "))
+	}
+	
+	return nil
+}
+
+// RenderSummary shows the final summary.
+func (s *StreamingPrettyRenderer) RenderSummary(summary report.Summary) error {
+	fmt.Fprintf(s.out, "SUMMARY: %d passed, %d failed, %d skipped (%s)\n", summary.Passed, summary.Failed, summary.Skipped, formatDuration(summary.Duration))
 	return nil
 }
 
