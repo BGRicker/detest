@@ -1,0 +1,3 @@
+Workflow Basic CI (testdata/workflows/ci_basic.yml)
+  Job build
+    • Run tests

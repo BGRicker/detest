@@ -1,0 +1,16 @@
+name: Workdir Workflow
+defaults:
+  run:
+    working-directory: ./root-default
+jobs:
+  build:
+    name: Build Job
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Build
+        run: make build
+      - name: Go Test
+        run: go test ./...
+        working-directory: ./module

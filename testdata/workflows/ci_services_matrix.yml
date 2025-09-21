@@ -1,0 +1,14 @@
+name: Unsupported Features
+jobs:
+  matrix-job:
+    if: github.ref != 'refs/heads/main'
+    strategy:
+      matrix:
+        go: [1.20, 1.21]
+    services:
+      postgres:
+        image: postgres:latest
+    steps:
+      - name: Conditional Step
+        if: runner.os == 'Windows'
+        run: echo skip

@@ -1,0 +1,46 @@
+{
+  "provider": "github",
+  "workflows": [
+    {
+      "path": "testdata/workflows/ci_basic.yml",
+      "name": "Basic CI",
+      "defaults": {},
+      "jobs": [
+        {
+          "name": "build",
+          "id": "build",
+          "defaults": {},
+          "steps": [
+            {
+              "name": "Run tests",
+              "run": "go test ./..."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "workflow_path": "testdata/workflows/ci_basic.yml",
+      "workflow_name": "Basic CI",
+      "job_name": "build",
+      "step_name": "Run tests",
+      "step_run": "go test ./...",
+      "status": "skipped",
+      "duration_ms": 0,
+      "exit_code": 0,
+      "dry_run": true
+    }
+  ],
+  "summary": {
+    "total_workflows": 1,
+    "total_jobs": 1,
+    "total_steps": 1,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 1,
+    "duration_ms": 0,
+    "exit_code": 0
+  }
+}

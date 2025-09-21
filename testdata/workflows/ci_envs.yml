@@ -1,0 +1,22 @@
+name: Env Workflow
+env:
+  WF_VAR: wf-value
+  SHARED: wf
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    name: Unit Tests
+    env:
+      JOB_VAR: job-value
+      SHARED: job
+    defaults:
+      run:
+        working-directory: ./app
+    steps:
+      - name: Step One
+        run: echo step
+        env:
+          STEP_VAR: step-value
+          SHARED: step

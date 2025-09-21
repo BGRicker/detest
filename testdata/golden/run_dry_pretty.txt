@@ -1,0 +1,5 @@
+Workflow Basic CI (testdata/workflows/ci_basic.yml)
+  Job build
+    - Run tests (0s)
+      command: go test ./...
+SUMMARY: 0 passed, 0 failed, 1 skipped (0s)
