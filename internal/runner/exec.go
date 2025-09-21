@@ -129,7 +129,8 @@ func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report
 }
 
 func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider.Job, step provider.Step, result *report.StepResult) error {
-	cmdArgs, err := buildCommand(step, job, wf)
+	env := mergeEnv(r.opts.Env, wf.Env, job.Env, step.Env)
+	cmdArgs, err := buildCommand(step, job, wf, env)
 	if err != nil {
 		result.Stderr = err.Error()
 		result.ExitCode = 127
@@ -142,8 +143,6 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 		result.ExitCode = 127
 		return err
 	}
-
-	env := mergeEnv(r.opts.Env, wf.Env, job.Env, step.Env)
 
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = workingDir
@@ -173,7 +172,7 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 	return nil
 }
 
-func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow) ([]string, error) {
+func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow, env []string) ([]string, error) {
 	shell := strings.TrimSpace(step.Shell)
 	if shell == "" {
 		shell = strings.TrimSpace(job.Defaults.RunShell)
@@ -182,15 +181,23 @@ func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow) ([
 		shell = strings.TrimSpace(wf.Defaults.RunShell)
 	}
 
-	return commandArgs(shell, step.Run)
+	return commandArgs(shell, step.Run, env)
 }
 
-func commandArgs(shellSpec string, script string) ([]string, error) {
+func commandArgs(shellSpec string, script string, env []string) ([]string, error) {
 	if shellSpec == "" {
 		if runtime.GOOS == "windows" {
 			return []string{"cmd", "/C", script}, nil
 		}
-		return []string{"bash", "-lc", script}, nil
+		// Use bash with login shell and source asdf if available
+		// This ensures tools like asdf, rbenv, etc. work properly
+		asdfInit := ""
+		if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
+			asdfInit = fmt.Sprintf("source %s/asdf.sh && ", asdfDir)
+		} else if _, err := os.Stat("/Users/benricker/.asdf/asdf.sh"); err == nil {
+			asdfInit = "source /Users/benricker/.asdf/asdf.sh && "
+		}
+		return []string{"bash", "-l", "-c", asdfInit + script}, nil
 	}
 
 	fields := strings.Fields(shellSpec)
@@ -200,7 +207,7 @@ func commandArgs(shellSpec string, script string) ([]string, error) {
 
 	switch base {
 	case "bash", "sh", "zsh", "ksh", "fish":
-		args = append(args, "-lc", script)
+		args = append(args, "-l", "-c", script)
 		return append([]string{shell}, args...), nil
 	case "cmd", "cmd.exe":
 		args = append(args, "/C", script)
@@ -339,6 +346,15 @@ func parseBundlerVersion(stderr string) string {
 		return ""
 	}
 	return match[1]
+}
+
+func getEnvValue(env []string, key string) string {
+	for _, kv := range env {
+		if idx := strings.Index(kv, "="); idx != -1 && kv[:idx] == key {
+			return kv[idx+1:]
+		}
+	}
+	return ""
 }
 
 func DefaultPrivilegedPatterns() []string {
