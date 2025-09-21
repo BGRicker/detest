@@ -35,6 +35,9 @@ func Default() Config {
 	return Config{
 		Provider: ProviderAuto,
 		Format:   FormatPretty,
+		Warn: WarnConfig{
+			VersionMismatch: true,
+		},
 	}
 }
 

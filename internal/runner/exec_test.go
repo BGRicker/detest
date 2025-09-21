@@ -154,6 +154,37 @@ func TestRunnerTailCapture(t *testing.T) {
 	}
 }
 
+func TestRunnerSkipsPrivilegedCommands(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		t.Skip("skip logic focused on non-linux hosts")
+	}
+	root := t.TempDir()
+	r := New(Options{Root: root})
+	wf := sampleWorkflow("sudo apt-get update")
+
+	results, summary, err := r.Run([]provider.Workflow{wf})
+	if err != nil {
+		t.Fatalf("runner Run: %v", err)
+	}
+	if summary.Skipped != 1 {
+		t.Fatalf("expected skipped count 1, got %+v", summary)
+	}
+	if results[0].Status != "skipped" {
+		t.Fatalf("expected step skipped, got %+v", results[0])
+	}
+	if results[0].Stderr == "" {
+		t.Fatalf("expected skip message")
+	}
+}
+
+func TestSimplifyErrorBundler(t *testing.T) {
+	msg := "Could not find 'bundler' (2.6.9) required by your Gemfile.lock"
+	simplified := simplifyError(msg)
+	if !strings.Contains(simplified, "gem install bundler:2.6.9") {
+		t.Fatalf("expected actionable bundler message, got %q", simplified)
+	}
+}
+
 func sampleWorkflow(script string) provider.Workflow {
 	return provider.Workflow{
 		Path: "wf.yml",

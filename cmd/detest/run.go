@@ -1,13 +1,14 @@
 package main
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "os"
+    "strings"
 
-	"github.com/bgricker/detest/internal/config"
-	"github.com/bgricker/detest/internal/output"
-	"github.com/bgricker/detest/internal/runner"
-	"github.com/spf13/cobra"
+    "github.com/bgricker/detest/internal/config"
+    "github.com/bgricker/detest/internal/output"
+    "github.com/bgricker/detest/internal/runner"
+    "github.com/spf13/cobra"
 )
 
 func newRunCmd() *cobra.Command {
@@ -34,14 +35,17 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	runOpts := runner.Options{
-		Root:      root,
-		Stdout:    cmd.OutOrStdout(),
-		Stderr:    cmd.ErrOrStderr(),
-		Verbose:   cfg.Verbose,
-		DryRun:    cfg.DryRun,
-		TailLines: 20,
-	}
+    allowPrivileged := os.Getenv("DETEST_ALLOW_PRIVILEGED") == "1"
+
+    runOpts := runner.Options{
+        Root:      root,
+        Stdout:    cmd.OutOrStdout(),
+        Stderr:    cmd.ErrOrStderr(),
+        Verbose:   cfg.Verbose,
+        DryRun:    cfg.DryRun,
+        TailLines: 20,
+        AllowPrivileged: allowPrivileged,
+    }
 	execRunner := runner.New(runOpts)
 	results, summary, err := execRunner.Run(filtered.workflows)
 	if err != nil {

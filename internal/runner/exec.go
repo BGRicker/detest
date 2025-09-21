@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -19,14 +20,15 @@ import (
 
 // Options configure how the runner executes steps.
 type Options struct {
-	Root      string
-	Stdout    io.Writer
-	Stderr    io.Writer
-	Verbose   bool
-	DryRun    bool
-	TailLines int
-	Env       []string
-	Now       func() time.Time
+	Root            string
+	Stdout          io.Writer
+	Stderr          io.Writer
+	Verbose         bool
+	DryRun          bool
+	TailLines       int
+	Env             []string
+	Now             func() time.Time
+	AllowPrivileged bool
 }
 
 // Runner executes workflow steps sequentially.
@@ -75,6 +77,14 @@ func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report
 					StepName:     step.Name,
 					StepRun:      step.Run,
 					DryRun:       r.opts.DryRun,
+				}
+
+				if msg, skip := shouldSkipStep(step.Run, r.opts.AllowPrivileged); skip {
+					result.Status = "skipped"
+					result.Stderr = msg
+					summary.Skipped++
+					results = append(results, result)
+					continue
 				}
 
 				if r.opts.DryRun {
@@ -145,7 +155,7 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 
 	err = cmd.Run()
 	result.Stdout = stdoutBuf.String()
-	result.Stderr = stderrBuf.String()
+	result.Stderr = simplifyError(stderrBuf.String())
 	result.ExitCode = exitCode(err)
 
 	if err != nil {
@@ -283,4 +293,44 @@ func tailLines(input string, maxLines int) string {
 		return strings.Join(lines, "\n")
 	}
 	return strings.Join(lines[len(lines)-maxLines:], "\n")
+}
+
+func shouldSkipStep(script string, allowPrivileged bool) (string, bool) {
+	if allowPrivileged {
+		return "", false
+	}
+	lower := strings.ToLower(script)
+	trimmed := strings.TrimSpace(lower)
+
+	if strings.HasPrefix(trimmed, "sudo ") || strings.Contains(lower, "sudo apt-get") {
+		if runtime.GOOS != "linux" {
+			return "skipped on non-linux host: step requires sudo", true
+		}
+		return "", false
+	}
+	if strings.Contains(lower, "apt-get") && runtime.GOOS != "linux" {
+		return "skipped on non-linux host: step uses apt-get", true
+	}
+	return "", false
+}
+
+func simplifyError(stderr string) string {
+	lower := strings.ToLower(stderr)
+	if strings.Contains(lower, "could not find 'bundler'") {
+		version := parseBundlerVersion(stderr)
+		if version != "" {
+			return fmt.Sprintf("missing bundler %s; run `gem install bundler:%s` or `bundle update --bundler`", version, version)
+		}
+		return "missing bundler; run `gem install bundler` or `bundle update --bundler`"
+	}
+	return stderr
+}
+
+func parseBundlerVersion(stderr string) string {
+	versionRegex := regexp.MustCompile(`bundler' \((\d+\.\d+(?:\.\d+)?)\)`)
+	match := versionRegex.FindStringSubmatch(stderr)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
 }
