@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/benricker/detest/internal/config"
-	"github.com/benricker/detest/internal/discovery"
-	"github.com/benricker/detest/internal/provider"
-	"github.com/benricker/detest/internal/provider/filter"
-	githubprovider "github.com/benricker/detest/internal/provider/github"
+	"github.com/bgricker/detest/internal/config"
+	"github.com/bgricker/detest/internal/discovery"
+	"github.com/bgricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/provider/filter"
+	githubprovider "github.com/bgricker/detest/internal/provider/github"
 )
 
 // pipelineData bundles parsed workflows with warnings and metadata.

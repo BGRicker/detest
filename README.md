@@ -5,7 +5,7 @@ Detest mirrors your GitHub Actions `run:` steps locally so you can catch failure
 ## Install
 
 ```bash
-go install github.com/benricker/detest/cmd/detest@latest
+go install github.com/bgricker/detest/cmd/detest@latest
 ```
 
 ## Usage

@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/benricker/detest/internal/provider"
-	"github.com/benricker/detest/internal/report"
+	"github.com/bgricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/report"
 )
 
 // Options configure how the runner executes steps.

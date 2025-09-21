@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/benricker/detest/internal/provider"
-	"github.com/benricker/detest/internal/report"
+	"github.com/bgricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/report"
 )
 
 // JSONRenderer emits structured execution data.

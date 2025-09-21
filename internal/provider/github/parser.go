@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/benricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/provider"
 	"gopkg.in/yaml.v3"
 )
 

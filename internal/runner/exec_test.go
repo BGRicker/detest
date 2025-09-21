@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/benricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/provider"
 )
 
 func TestRunnerDryRun(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/benricker/detest/internal/provider"
-	"github.com/benricker/detest/internal/report"
+	"github.com/bgricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/report"
 )
 
 // PrettyRenderer renders execution results in a human-friendly format.

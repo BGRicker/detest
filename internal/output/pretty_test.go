@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/benricker/detest/internal/provider"
-	"github.com/benricker/detest/internal/report"
+	"github.com/bgricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/report"
 )
 
 func TestPrettyRenderList(t *testing.T) {

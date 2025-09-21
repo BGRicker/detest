@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/benricker/detest/internal/provider"
+	"github.com/bgricker/detest/internal/provider"
 )
 
 // Pattern represents a compiled filter condition supporting substring and regex matching.

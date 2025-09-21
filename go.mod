@@ -1,4 +1,4 @@
-module github.com/benricker/detest
+module github.com/bgricker/detest
 
 go 1.25.1
 

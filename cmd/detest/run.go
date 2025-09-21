@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/benricker/detest/internal/config"
-	"github.com/benricker/detest/internal/output"
-	"github.com/benricker/detest/internal/runner"
+	"github.com/bgricker/detest/internal/config"
+	"github.com/bgricker/detest/internal/output"
+	"github.com/bgricker/detest/internal/runner"
 	"github.com/spf13/cobra"
 )
 
