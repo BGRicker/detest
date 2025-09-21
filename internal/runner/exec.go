@@ -129,7 +129,8 @@ func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report
 }
 
 func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider.Job, step provider.Step, result *report.StepResult) error {
-	cmdArgs, err := buildCommand(step, job, wf)
+	env := mergeEnv(r.opts.Env, wf.Env, job.Env, step.Env)
+	cmdArgs, err := buildCommand(step, job, wf, env)
 	if err != nil {
 		result.Stderr = err.Error()
 		result.ExitCode = 127
@@ -142,8 +143,6 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 		result.ExitCode = 127
 		return err
 	}
-
-	env := mergeEnv(r.opts.Env, wf.Env, job.Env, step.Env)
 
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = workingDir
@@ -173,7 +172,7 @@ func (r *Runner) runStep(ctx context.Context, wf provider.Workflow, job provider
 	return nil
 }
 
-func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow) ([]string, error) {
+func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow, env []string) ([]string, error) {
 	shell := strings.TrimSpace(step.Shell)
 	if shell == "" {
 		shell = strings.TrimSpace(job.Defaults.RunShell)
@@ -182,15 +181,18 @@ func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow) ([
 		shell = strings.TrimSpace(wf.Defaults.RunShell)
 	}
 
-	return commandArgs(shell, step.Run)
+	return commandArgs(shell, step.Run, env)
 }
 
-func commandArgs(shellSpec string, script string) ([]string, error) {
+func commandArgs(shellSpec string, script string, env []string) ([]string, error) {
 	if shellSpec == "" {
 		if runtime.GOOS == "windows" {
 			return []string{"cmd", "/C", script}, nil
 		}
-		return []string{"bash", "-lc", script}, nil
+		// Use bash with login shell and source asdf if available
+		// This ensures tools like asdf, rbenv, etc. work properly
+		asdfInit := getAsdfInit(env, "bash")
+		return []string{"bash", "-l", "-c", asdfInit + " " + script}, nil
 	}
 
 	fields := strings.Fields(shellSpec)
@@ -199,8 +201,16 @@ func commandArgs(shellSpec string, script string) ([]string, error) {
 	base := strings.ToLower(filepath.Base(shell))
 
 	switch base {
-	case "bash", "sh", "zsh", "ksh", "fish":
-		args = append(args, "-lc", script)
+	case "bash", "zsh", "ksh", "fish":
+		// These shells support login flag, use it for proper environment inheritance
+		asdfInit := getAsdfInit(env, base)
+		args = append(args, "-l", "-c", asdfInit + " " + script)
+		return append([]string{shell}, args...), nil
+	case "sh":
+		// sh might be dash or another shell that doesn't support -l, use only -c
+		// Also use POSIX-compliant asdf initialization
+		asdfInit := getAsdfInit(env, "sh")
+		args = append(args, "-c", asdfInit + " " + script)
 		return append([]string{shell}, args...), nil
 	case "cmd", "cmd.exe":
 		args = append(args, "/C", script)
@@ -339,6 +349,64 @@ func parseBundlerVersion(stderr string) string {
 		return ""
 	}
 	return match[1]
+}
+
+func getEnvValue(env []string, key string) string {
+	for _, kv := range env {
+		if idx := strings.Index(kv, "="); idx != -1 && kv[:idx] == key {
+			return kv[idx+1:]
+		}
+	}
+	return ""
+}
+
+func getAsdfInit(env []string, shellBase string) string {
+	// Determine asdf script path
+	var asdfPath string
+	// Check ASDF_DIR from environment first
+	if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
+		// Use filepath.Join for safe path construction and validate the path
+		asdfPath = filepath.Join(asdfDir, "asdf.sh")
+		if _, err := os.Stat(asdfPath); err != nil {
+			asdfPath = ""
+		}
+	}
+	// Fallback to HOME from environment, then os.UserHomeDir()
+	if asdfPath == "" {
+		home := getEnvValue(env, "HOME")
+		if home == "" {
+			if homeDir, err := os.UserHomeDir(); err == nil {
+				home = homeDir
+			}
+		}
+		if home != "" {
+			asdfPath = filepath.Join(home, ".asdf", "asdf.sh")
+			if _, err := os.Stat(asdfPath); err != nil {
+				asdfPath = ""
+			}
+		}
+	}
+	if asdfPath == "" {
+		return ""
+	}
+	// Return shell-specific initialization string
+	switch shellBase {
+	case "bash", "zsh":
+		return fmt.Sprintf("source %q && ", asdfPath)
+	case "ksh", "sh":
+		return fmt.Sprintf(". %q && ", asdfPath)
+	case "fish":
+		// fish uses different syntax and file extension
+		fishPath := strings.TrimSuffix(asdfPath, ".sh") + ".fish"
+		if _, err := os.Stat(fishPath); err == nil {
+			return fmt.Sprintf("source %q; ", fishPath)
+		}
+		// Fallback to bash script if fish version doesn't exist
+		return fmt.Sprintf("source %q; ", asdfPath)
+	default:
+		// For unknown shells, skip asdf initialization to avoid errors
+		return ""
+	}
 }
 
 func DefaultPrivilegedPatterns() []string {
