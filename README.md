@@ -32,6 +32,16 @@ $ DETEST_ALLOW_PRIVILEGED=1 detest run
 
 Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept multiple values and support substring or `/regex/` matches. When no workflows are provided, Detest automatically loads `.github/workflows/*.yml`/`*.yaml` in lexicographic order. Execution stops with a non-zero exit code if any step fails, but all remaining steps continue to run so you see the full picture.
 
+## Environment Support
+
+Detest automatically inherits your shell environment and supports version managers:
+
+- **asdf**: Automatically sources `asdf.sh` (or `asdf.fish` for fish shell) to ensure correct Ruby, Node, Python versions
+- **rbenv**: Works with your existing rbenv setup
+- **Shell compatibility**: Supports bash, zsh, ksh, sh, and fish shells
+- **Environment variables**: Merges workflow → job → step environment variables
+- **Working directories**: Respects `working-directory` settings from workflows
+
 ## Configuration
 
 An optional `.detest.yml` can provide defaults for the CLI. Command-line flags always win over config values.
@@ -62,6 +72,9 @@ privileged_command_patterns:
 - ✅ Sequential execution with env/shell/working-directory resolution
 - ✅ Pretty & JSON reporters with per-step duration/excerpts
 - ✅ Dry-run, verbose streaming, job/step filters, repeatable `--workflow`
+- ✅ Environment inheritance with asdf/rbenv support
+- ✅ Cross-shell compatibility (bash, zsh, ksh, sh, fish)
+- ✅ Privileged command detection and skipping
 - 🚧 Upcoming: richer runtime pre-flight checks, additional CI providers, matrix & services support
   - Version mismatch warnings are enabled by default; set `warn.version_mismatch: false` to silence them.
 
