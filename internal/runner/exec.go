@@ -192,7 +192,7 @@ func commandArgs(shellSpec string, script string, env []string) ([]string, error
 		// Use bash with login shell and source asdf if available
 		// This ensures tools like asdf, rbenv, etc. work properly
 		asdfInit := getAsdfInit(env, "bash")
-		return []string{"bash", "-l", "-c", asdfInit + script}, nil
+		return []string{"bash", "-l", "-c", asdfInit + " " + script}, nil
 	}
 
 	fields := strings.Fields(shellSpec)
@@ -204,13 +204,13 @@ func commandArgs(shellSpec string, script string, env []string) ([]string, error
 	case "bash", "zsh", "ksh", "fish":
 		// These shells support login flag, use it for proper environment inheritance
 		asdfInit := getAsdfInit(env, base)
-		args = append(args, "-l", "-c", asdfInit + script)
+		args = append(args, "-l", "-c", asdfInit + " " + script)
 		return append([]string{shell}, args...), nil
 	case "sh":
 		// sh might be dash or another shell that doesn't support -l, use only -c
 		// Also use POSIX-compliant asdf initialization
 		asdfInit := getAsdfInit(env, "sh")
-		args = append(args, "-c", asdfInit + script)
+		args = append(args, "-c", asdfInit + " " + script)
 		return append([]string{shell}, args...), nil
 	case "cmd", "cmd.exe":
 		args = append(args, "/C", script)
@@ -363,7 +363,6 @@ func getEnvValue(env []string, key string) string {
 func getAsdfInit(env []string, shellBase string) string {
 	// Determine asdf script path
 	var asdfPath string
-	
 	// Check ASDF_DIR from environment first
 	if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
 		// Use filepath.Join for safe path construction and validate the path
@@ -372,7 +371,6 @@ func getAsdfInit(env []string, shellBase string) string {
 			asdfPath = ""
 		}
 	}
-	
 	// Fallback to HOME from environment, then os.UserHomeDir()
 	if asdfPath == "" {
 		home := getEnvValue(env, "HOME")
@@ -381,7 +379,6 @@ func getAsdfInit(env []string, shellBase string) string {
 				home = homeDir
 			}
 		}
-		
 		if home != "" {
 			asdfPath = filepath.Join(home, ".asdf", "asdf.sh")
 			if _, err := os.Stat(asdfPath); err != nil {
@@ -389,11 +386,9 @@ func getAsdfInit(env []string, shellBase string) string {
 			}
 		}
 	}
-	
 	if asdfPath == "" {
 		return ""
 	}
-	
 	// Return shell-specific initialization string
 	switch shellBase {
 	case "bash", "zsh":
