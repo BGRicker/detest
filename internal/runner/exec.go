@@ -54,7 +54,7 @@ func New(opts Options) *Runner {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	if opts.PrivilegedPatterns == nil {
+	if opts.PrivilegedPatterns == nil || len(opts.PrivilegedPatterns) == 0 {
 		opts.PrivilegedPatterns = DefaultPrivilegedPatterns()
 	}
 	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
