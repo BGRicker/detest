@@ -28,8 +28,8 @@ func TestCompareMajorMinor(t *testing.T) {
 		{"2.6.9", "2.6.3", true},
 		{"2.6", "2.6.3", true},
 		{"14.17", "14.18.1", false},
-		{"", "14.18.1", true},
-		{"14.17", "", true},
+		{"", "14.18.1", false},
+		{"14.17", "", false},
 	}
 	for _, tt := range tests {
 		if got := CompareMajorMinor(tt.desired, tt.actual); got != tt.match {

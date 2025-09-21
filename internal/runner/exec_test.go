@@ -155,9 +155,6 @@ func TestRunnerTailCapture(t *testing.T) {
 }
 
 func TestRunnerSkipsPrivilegedCommands(t *testing.T) {
-	if runtime.GOOS == "linux" {
-		t.Skip("skip logic focused on non-linux hosts")
-	}
 	root := t.TempDir()
 	r := New(Options{Root: root})
 	wf := sampleWorkflow("sudo apt-get update")
@@ -172,8 +169,25 @@ func TestRunnerSkipsPrivilegedCommands(t *testing.T) {
 	if results[0].Status != "skipped" {
 		t.Fatalf("expected step skipped, got %+v", results[0])
 	}
-	if results[0].Stderr == "" {
-		t.Fatalf("expected skip message")
+	if !strings.Contains(results[0].Stderr, "pattern") {
+		t.Fatalf("expected skip message referencing pattern, got %q", results[0].Stderr)
+	}
+}
+
+func TestRunnerAllowsPrivilegedCommands(t *testing.T) {
+	root := t.TempDir()
+	r := New(Options{Root: root, AllowPrivileged: true})
+	wf := sampleWorkflow("sudo apt-get update")
+
+	results, summary, err := r.Run([]provider.Workflow{wf})
+	if err != nil {
+		t.Fatalf("runner Run: %v", err)
+	}
+	if summary.Skipped != 0 {
+		t.Fatalf("expected no skipped steps when AllowPrivileged=true, got %+v", summary)
+	}
+	if results[0].Status == "skipped" {
+		t.Fatalf("expected step not skipped when AllowPrivileged=true, got %+v", results[0])
 	}
 }
 

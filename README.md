@@ -25,7 +25,8 @@ $ detest run --job test --only-step "Lint" --format json
 
 # Stream command output as it runs
 $ detest run --verbose
-\n+# Allow privileged commands (e.g., sudo/apt-get) when absolutely necessary
+
+# Allow privileged commands (e.g., sudo/apt-get) when absolutely necessary
 $ DETEST_ALLOW_PRIVILEGED=1 detest run
 ```
 
@@ -50,6 +51,9 @@ verbose: false
 format: pretty             # pretty|json
 warn:
   version_mismatch: true   # warn when local Ruby/Node major.minor differs
+privileged_command_patterns:
+  - (?i)^sudo\b
+  - (?i)\bapt-get\b
 ```
 
 ## Current Status

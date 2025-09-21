@@ -20,15 +20,16 @@ import (
 
 // Options configure how the runner executes steps.
 type Options struct {
-	Root            string
-	Stdout          io.Writer
-	Stderr          io.Writer
-	Verbose         bool
-	DryRun          bool
-	TailLines       int
-	Env             []string
-	Now             func() time.Time
-	AllowPrivileged bool
+	Root               string
+	Stdout             io.Writer
+	Stderr             io.Writer
+	Verbose            bool
+	DryRun             bool
+	TailLines          int
+	Env                []string
+	Now                func() time.Time
+	AllowPrivileged    bool
+	PrivilegedPatterns []string
 }
 
 // Runner executes workflow steps sequentially.
@@ -53,6 +54,10 @@ func New(opts Options) *Runner {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
+	if opts.PrivilegedPatterns == nil {
+		opts.PrivilegedPatterns = DefaultPrivilegedPatterns()
+	}
+	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
 	return &Runner{opts: opts}
 }
 
@@ -79,7 +84,7 @@ func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report
 					DryRun:       r.opts.DryRun,
 				}
 
-				if msg, skip := shouldSkipStep(step.Run, r.opts.AllowPrivileged); skip {
+				if msg, skip := shouldSkipStep(step.Run, r.opts); skip {
 					result.Status = "skipped"
 					result.Stderr = msg
 					summary.Skipped++
@@ -295,24 +300,26 @@ func tailLines(input string, maxLines int) string {
 	return strings.Join(lines[len(lines)-maxLines:], "\n")
 }
 
-func shouldSkipStep(script string, allowPrivileged bool) (string, bool) {
-	if allowPrivileged {
+func shouldSkipStep(script string, opts Options) (string, bool) {
+	if opts.AllowPrivileged {
 		return "", false
 	}
-	lower := strings.ToLower(script)
-	trimmed := strings.TrimSpace(lower)
-
-	if strings.HasPrefix(trimmed, "sudo ") || strings.Contains(lower, "sudo apt-get") {
-		if runtime.GOOS != "linux" {
-			return "skipped on non-linux host: step requires sudo", true
+	for _, pattern := range opts.PrivilegedPatterns {
+		if pattern == "" {
+			continue
 		}
-		return "", false
-	}
-	if strings.Contains(lower, "apt-get") && runtime.GOOS != "linux" {
-		return "skipped on non-linux host: step uses apt-get", true
+		matched, err := regexp.MatchString(pattern, script)
+		if err != nil {
+			continue
+		}
+		if matched {
+			return fmt.Sprintf("skipped privileged command matching pattern %q; set DETEST_ALLOW_PRIVILEGED=1 to run", pattern), true
+		}
 	}
 	return "", false
 }
+
+var bundlerVersionRegex = regexp.MustCompile(`bundler' \((\d+\.\d+(?:\.\d+)?)\)`)
 
 func simplifyError(stderr string) string {
 	lower := strings.ToLower(stderr)
@@ -327,10 +334,27 @@ func simplifyError(stderr string) string {
 }
 
 func parseBundlerVersion(stderr string) string {
-	versionRegex := regexp.MustCompile(`bundler' \((\d+\.\d+(?:\.\d+)?)\)`)
-	match := versionRegex.FindStringSubmatch(stderr)
+	match := bundlerVersionRegex.FindStringSubmatch(stderr)
 	if len(match) < 2 {
 		return ""
 	}
 	return match[1]
+}
+
+func DefaultPrivilegedPatterns() []string {
+	return []string{
+		`(?i)^sudo\b`,           // sudo commands
+		`(?i)\bapt-get\b`,       // Debian/Ubuntu package manager
+		`(?i)\bapt\b`,           // Modern apt command
+		`(?i)\byum\b`,           // Red Hat package manager
+		`(?i)\bdnf\b`,           // Fedora package manager
+		`(?i)\bzypper\b`,        // SUSE package manager
+		`(?i)\bpacman\b`,        // Arch package manager
+		`(?i)\bbrew\b`,          // macOS package manager (can require sudo)
+		`(?i)\bchoco\b`,         // Windows package manager
+		`(?i)\bwinget\b`,        // Windows package manager
+		`(?i)\bpip\s+install\s+--user`, // pip install --user (can require sudo)
+		`(?i)\bnpm\s+install\s+-g`,     // npm install -g (can require sudo)
+		`(?i)\byarn\s+global`,          // yarn global (can require sudo)
+	}
 }

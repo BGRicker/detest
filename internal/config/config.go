@@ -22,7 +22,8 @@ type Config struct {
 	Verbose bool   `yaml:"verbose"`
 	Format  string `yaml:"format"`
 
-	Warn WarnConfig `yaml:"warn"`
+	Warn                      WarnConfig `yaml:"warn"`
+	PrivilegedCommandPatterns []string   `yaml:"privileged_command_patterns"`
 }
 
 // WarnConfig controls additional warning behaviour.
@@ -91,6 +92,9 @@ func merge(base, override Config) Config {
 	}
 	if len(override.SkipSteps) > 0 {
 		out.SkipSteps = append([]string{}, override.SkipSteps...)
+	}
+	if len(override.PrivilegedCommandPatterns) > 0 {
+		out.PrivilegedCommandPatterns = append([]string{}, override.PrivilegedCommandPatterns...)
 	}
 	if override.Format != "" {
 		out.Format = override.Format

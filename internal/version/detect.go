@@ -62,7 +62,10 @@ func runCommand(name string, args ...string) (string, error) {
 func CompareMajorMinor(desired, actual string) bool {
 	d := semverPrefix(desired)
 	a := semverPrefix(actual)
-	return d == "" || a == "" || strings.EqualFold(d, a)
+	if d == "" || a == "" {
+		return false
+	}
+	return strings.EqualFold(d, a)
 }
 
 func semverPrefix(version string) string {
