@@ -185,25 +185,15 @@ func buildCommand(step provider.Step, job provider.Job, wf provider.Workflow, en
 }
 
 func commandArgs(shellSpec string, script string, env []string) ([]string, error) {
+	// Compute asdf initialization prefix once for reuse
+	asdfInit := getAsdfInit(env)
+	
 	if shellSpec == "" {
 		if runtime.GOOS == "windows" {
 			return []string{"cmd", "/C", script}, nil
 		}
 		// Use bash with login shell and source asdf if available
 		// This ensures tools like asdf, rbenv, etc. work properly
-		asdfInit := ""
-		if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
-			// Use filepath.Join for safe path construction and validate the path
-			asdfPath := filepath.Join(asdfDir, "asdf.sh")
-			if _, err := os.Stat(asdfPath); err == nil {
-				asdfInit = fmt.Sprintf("source %s && ", asdfPath)
-			}
-		} else if home, err := os.UserHomeDir(); err == nil {
-			asdfPath := filepath.Join(home, ".asdf", "asdf.sh")
-			if _, err := os.Stat(asdfPath); err == nil {
-				asdfInit = fmt.Sprintf("source %s && ", asdfPath)
-			}
-		}
 		return []string{"bash", "-l", "-c", asdfInit + script}, nil
 	}
 
@@ -213,8 +203,13 @@ func commandArgs(shellSpec string, script string, env []string) ([]string, error
 	base := strings.ToLower(filepath.Base(shell))
 
 	switch base {
-	case "bash", "sh", "zsh", "ksh", "fish":
-		args = append(args, "-l", "-c", script)
+	case "bash", "zsh", "ksh", "fish":
+		// These shells support login flag, use it for proper environment inheritance
+		args = append(args, "-l", "-c", asdfInit + script)
+		return append([]string{shell}, args...), nil
+	case "sh":
+		// sh might be dash or another shell that doesn't support -l, use only -c
+		args = append(args, "-c", asdfInit + script)
 		return append([]string{shell}, args...), nil
 	case "cmd", "cmd.exe":
 		args = append(args, "/C", script)
@@ -361,6 +356,34 @@ func getEnvValue(env []string, key string) string {
 			return kv[idx+1:]
 		}
 	}
+	return ""
+}
+
+func getAsdfInit(env []string) string {
+	// Check ASDF_DIR from environment first
+	if asdfDir := getEnvValue(env, "ASDF_DIR"); asdfDir != "" {
+		// Use filepath.Join for safe path construction and validate the path
+		asdfPath := filepath.Join(asdfDir, "asdf.sh")
+		if _, err := os.Stat(asdfPath); err == nil {
+			return fmt.Sprintf("source %q && ", asdfPath)
+		}
+	}
+	
+	// Fallback to HOME from environment, then os.UserHomeDir()
+	home := getEnvValue(env, "HOME")
+	if home == "" {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			home = homeDir
+		}
+	}
+	
+	if home != "" {
+		asdfPath := filepath.Join(home, ".asdf", "asdf.sh")
+		if _, err := os.Stat(asdfPath); err == nil {
+			return fmt.Sprintf("source %q && ", asdfPath)
+		}
+	}
+	
 	return ""
 }
 
