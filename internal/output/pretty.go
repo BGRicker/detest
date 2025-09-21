@@ -16,6 +16,7 @@ type StreamingRenderer interface {
 	InitializeWorkflow(workflowName, jobName string, stepCount int) error
 	StartStep(stepName string) error
 	CompleteStep(stepName string, status string, duration time.Duration, stderr string) error
+	CompleteJob() error
 	RenderSummary(summary report.Summary) error
 }
 
@@ -31,6 +32,17 @@ type StreamingPrettyRenderer struct {
 	currentStep int
 	workflowName string
 	jobName string
+	jobStatus string
+	jobStartTime time.Time
+	jobSteps []stepResult
+	showStepDetails bool
+}
+
+type stepResult struct {
+	name string
+	status string
+	duration time.Duration
+	stderr string
 }
 
 // NewPretty creates a PrettyRenderer writing to the provided writer.
@@ -134,6 +146,10 @@ func (s *StreamingPrettyRenderer) InitializeWorkflow(workflowName, jobName strin
 	s.jobName = jobName
 	s.stepCount = stepCount
 	s.currentStep = 0
+	s.jobStatus = "running"
+	s.jobStartTime = time.Now()
+	s.jobSteps = make([]stepResult, 0, stepCount)
+	s.showStepDetails = false
 	
 	fmt.Fprintf(s.out, "Workflow %s\n", workflowName)
 	fmt.Fprintf(s.out, "  Job %s\n", jobName)
@@ -147,7 +163,8 @@ func (s *StreamingPrettyRenderer) StartStep(stepName string) error {
 	if label == "" {
 		label = "step"
 	}
-	fmt.Fprintf(s.out, "    🟢 %s\n", label)
+	
+	// Don't show step details during execution - wait for job completion
 	return nil
 }
 
@@ -158,8 +175,34 @@ func (s *StreamingPrettyRenderer) CompleteStep(stepName string, status string, d
 		label = "step"
 	}
 	
+	// Store step result
+	s.jobSteps = append(s.jobSteps, stepResult{
+		name: label,
+		status: status,
+		duration: duration,
+		stderr: stderr,
+	})
+	
+	// Update job status if step failed
+	if status == "failed" {
+		s.jobStatus = "failed"
+	}
+	
+	// Don't show step details during execution - wait for job completion
+	return nil
+}
+
+// CompleteJob shows the final job status and step details if failed.
+func (s *StreamingPrettyRenderer) CompleteJob() error {
+	jobDuration := time.Since(s.jobStartTime)
+	
+	// Determine final job status
+	if s.jobStatus == "running" {
+		s.jobStatus = "passed"
+	}
+	
 	var emoji string
-	switch status {
+	switch s.jobStatus {
 	case "passed":
 		emoji = "✅"
 	case "failed":
@@ -170,13 +213,30 @@ func (s *StreamingPrettyRenderer) CompleteStep(stepName string, status string, d
 		emoji = "❓"
 	}
 	
-	// Move cursor up one line and overwrite the running status
-	fmt.Fprintf(s.out, "\033[1A\033[K") // Move up, clear line
-	fmt.Fprintf(s.out, "    %s %s (%s)\n", emoji, label, formatDuration(duration))
+	// Show job-level status
+	fmt.Fprintf(s.out, "  %s %s (%s)\n", emoji, s.jobName, formatDuration(jobDuration))
 	
-	// Only show stderr for failed steps
-	if status == "failed" && stderr != "" {
-		fmt.Fprintf(s.out, "      %s\n", indent(stderr, "      "))
+	// If job failed, show step details
+	if s.jobStatus == "failed" {
+		for _, step := range s.jobSteps {
+			var stepEmoji string
+			switch step.status {
+			case "passed":
+				stepEmoji = "✅"
+			case "failed":
+				stepEmoji = "❌"
+			case "skipped":
+				stepEmoji = "⏭️"
+			default:
+				stepEmoji = "❓"
+			}
+			fmt.Fprintf(s.out, "    %s %s (%s)\n", stepEmoji, step.name, formatDuration(step.duration))
+			
+			// Show stderr for failed steps
+			if step.status == "failed" && step.stderr != "" {
+				fmt.Fprintf(s.out, "      %s\n", indent(step.stderr, "      "))
+			}
+		}
 	}
 	
 	return nil

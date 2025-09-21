@@ -162,6 +162,11 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 					return nil, summary, err
 				}
 			}
+			
+			// Complete job with streaming update
+			if err := r.opts.StreamingRenderer.CompleteJob(); err != nil {
+				return nil, summary, err
+			}
 		}
 	}
 
