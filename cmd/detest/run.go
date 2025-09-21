@@ -48,11 +48,11 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		PrivilegedPatterns: append([]string{}, cfg.PrivilegedCommandPatterns...),
 	}
 
-	// Enable streaming for pretty format when not verbose
-	if strings.ToLower(cfg.Format) == config.FormatPretty && !cfg.Verbose && !cfg.DryRun {
-		runOpts.Streaming = true
-		runOpts.StreamingRenderer = output.NewStreamingPretty(cmd.OutOrStdout())
-	}
+		// Enable streaming for pretty format when not verbose
+		if strings.ToLower(cfg.Format) == config.FormatPretty && !cfg.Verbose {
+			runOpts.Streaming = true
+			runOpts.StreamingRenderer = output.NewStreamingPretty(cmd.OutOrStdout())
+		}
 
 	execRunner := runner.New(runOpts)
 	results, summary, err := execRunner.Run(filtered.workflows)

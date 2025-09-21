@@ -61,12 +61,18 @@ func New(opts Options) *Runner {
 		opts.PrivilegedPatterns = DefaultPrivilegedPatterns()
 	}
 	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
+	
+	// Ensure streaming is only enabled when renderer is provided
+	if opts.Streaming && opts.StreamingRenderer == nil {
+		opts.Streaming = false
+	}
+	
 	return &Runner{opts: opts}
 }
 
 // Run executes the provided workflows returning step results and a summary.
 func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report.Summary, error) {
-	if r.opts.Streaming && r.opts.StreamingRenderer != nil {
+	if r.opts.Streaming {
 		return r.runStreaming(workflows)
 	}
 	return r.runBatch(workflows)

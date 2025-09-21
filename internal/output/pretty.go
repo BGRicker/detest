@@ -151,8 +151,7 @@ func (s *StreamingPrettyRenderer) InitializeWorkflow(workflowName, jobName strin
 	s.jobSteps = make([]stepResult, 0, stepCount)
 	s.showStepDetails = false
 	
-	fmt.Fprintf(s.out, "Workflow %s\n", workflowName)
-	fmt.Fprintf(s.out, "  Job %s\n", jobName)
+	// Don't print workflow/job headers - we'll show clean job status instead
 	return nil
 }
 
@@ -213,8 +212,8 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 		emoji = "❓"
 	}
 	
-	// Show job-level status
-	fmt.Fprintf(s.out, "  %s %s (%s)\n", emoji, s.jobName, formatDuration(jobDuration))
+	// Show clean job-level status (no workflow/job headers)
+	fmt.Fprintf(s.out, "%s %s (%s)\n", emoji, s.jobName, formatDuration(jobDuration))
 	
 	// If job failed, show step details
 	if s.jobStatus == "failed" {
@@ -234,7 +233,7 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 			
 			// Show stderr for failed steps
 			if step.status == "failed" && step.stderr != "" {
-				fmt.Fprintf(s.out, "      %s\n", indent(step.stderr, "      "))
+				fmt.Fprintf(s.out, "%s\n", indent(step.stderr, "      "))
 			}
 		}
 	}
