@@ -272,8 +272,9 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 					}
 				}
 				
-				// If job failed, show step details and don't update running jobs
+				// If job failed, update all job lines to show final status, then show details
 				if job.status == "failed" {
+					s.updateRunningJobs()
 					s.showJobDetails(job)
 					return nil
 				}
@@ -382,9 +383,11 @@ func (s *StreamingPrettyRenderer) updateRunningJobs() {
 		totalJobs += len(workflow.jobs)
 	}
 	
-	// Move cursor up to the first job line
-	for i := 0; i < totalJobs; i++ {
-		fmt.Fprintf(s.out, "\033[1A") // Move up one line
+	// Move cursor up to the first job line, but guard against negative movement when no jobs exist
+	if totalJobs > 0 {
+		for i := 0; i < totalJobs; i++ {
+			fmt.Fprintf(s.out, "\033[1A") // Move up one line
+		}
 	}
 	
 	// Update all jobs
@@ -393,7 +396,7 @@ func (s *StreamingPrettyRenderer) updateRunningJobs() {
 			if job.status == "pending" {
 				fmt.Fprintf(s.out, "\033[K") // Clear line
 				fmt.Fprintf(s.out, "⏳ %s\n", job.name)
-			} else if job.status == "running" {
+            } else if job.status == "running" {
 				elapsed := time.Since(job.startTime)
 				fmt.Fprintf(s.out, "\033[K") // Clear line
 				fmt.Fprintf(s.out, "🟢 %s (%s)\n", job.name, formatDuration(elapsed))
@@ -419,15 +422,15 @@ func (s *StreamingPrettyRenderer) updateRunningJobs() {
 
 // cleanErrorOutput removes noise and makes error output more readable
 func cleanErrorOutput(stderr string) string {
-	lines := strings.Split(stderr, "\n")
+    lines := strings.Split(stderr, "\n")
 	
 	// Check if this looks like RSpec output
 	if isRSpecOutput(lines) {
 		return formatRSpecFailures(lines)
 	}
 	
-	// Otherwise, use the general cleaning logic
-	var cleaned []string
+    // Otherwise, use the general cleaning logic
+    var cleaned []string
 	
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -466,15 +469,19 @@ func cleanErrorOutput(stderr string) string {
 			continue
 		}
 		
-		// Keep important error lines
-		if strings.Contains(line, "failed") ||
-		   strings.Contains(line, "error") ||
-		   strings.Contains(line, "Error") ||
-		   strings.Contains(line, "FAILED") ||
-		   strings.Contains(line, "aborted") ||
-		   strings.Contains(line, "Tasks: TOP") {
-			cleaned = append(cleaned, line)
-		}
+        // Keep important error lines
+        lower := strings.ToLower(line)
+        if strings.Contains(lower, "failure/error:") ||
+           strings.Contains(lower, "expected ") ||
+           strings.Contains(lower, "got ") ||
+           strings.HasPrefix(line, "# ./spec/") ||
+           strings.Contains(lower, "failed") ||
+           strings.Contains(lower, "error") ||
+           strings.Contains(line, "FAILED") ||
+           strings.Contains(lower, "aborted") ||
+           strings.Contains(line, "Tasks: TOP") {
+            cleaned = append(cleaned, line)
+        }
 	}
 	
 	// If we have cleaned lines, return them; otherwise return a simple message
@@ -482,18 +489,19 @@ func cleanErrorOutput(stderr string) string {
 		return strings.Join(cleaned, "\n")
 	}
 	
-	return "Step failed - see verbose output for details"
+    return "Step failed - output suppressed; run with --verbose for full logs"
 }
 
 // isRSpecOutput checks if the output looks like RSpec test results
 func isRSpecOutput(lines []string) bool {
 	for _, line := range lines {
-		if strings.Contains(line, "Failures:") ||
-		   strings.Contains(line, "Failed examples:") ||
-		   strings.Contains(line, "rspec ./spec/") ||
-		   strings.Contains(line, "Finished in") ||
-		   strings.Contains(line, "examples,") ||
-		   strings.Contains(line, "Failure/Error:") {
+        if strings.Contains(line, "Failures:") ||
+           strings.Contains(line, "Failed examples:") ||
+           strings.Contains(line, "rspec ./spec/") ||
+           strings.Contains(line, "Finished in") ||
+           strings.Contains(line, "examples,") ||
+           strings.Contains(line, "Failure/Error:") ||
+           strings.Contains(line, ") ") { // numbered failures like "1) ..."
 			return true
 		}
 	}
@@ -504,11 +512,12 @@ func isRSpecOutput(lines []string) bool {
 func formatRSpecFailures(lines []string) string {
 	var result []string
 	var currentFailure []string
+    inFailedExamples := false
 	
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		
-		// Skip empty lines and noise
+        // Skip empty lines and noise
 		if line == "" || 
 		   strings.Contains(line, "Bash implementation") ||
 		   strings.Contains(line, "Migration guide") ||
@@ -531,20 +540,41 @@ func formatRSpecFailures(lines []string) string {
 		   strings.Contains(line, "Database connection mocking") ||
 		   strings.Contains(line, "# ./spec/support/database_cleaner.rb") {
 			continue
-		}
+        }
+
+        // Handle the concise "Failed examples:" tail section when our tail dropped the main block
+        if strings.HasPrefix(line, "Failed examples:") {
+            inFailedExamples = true
+            continue
+        }
+        if inFailedExamples {
+            if strings.HasPrefix(line, "rspec ./spec/") {
+                // Example format: "rspec ./spec/models/foo_spec.rb:12 # description..."
+                // Trim after first space following path to keep it short
+                path := line
+                if hash := strings.Index(line, " # "); hash != -1 {
+                    path = line[len("rspec "):hash]
+                } else if strings.HasPrefix(line, "rspec ") {
+                    path = strings.TrimPrefix(line, "rspec ")
+                }
+                result = append(result, fmt.Sprintf("        ❌ %s", path))
+            }
+			// Do not process other lines in this block
+            continue
+        }
 		
-		// Start of a new failure (numbered like "2) DetectMovementsJob...")
-		if strings.Contains(line, ") ") && !strings.Contains(line, "Failure/Error:") {
+        // Start of a new failure (numbered like "2) DetectMovementsJob...")
+        if strings.Contains(line, ") ") && !strings.Contains(line, "Failure/Error:") {
 			if len(currentFailure) > 0 {
 				result = append(result, formatSingleFailure(currentFailure)...)
 			}
 			currentFailure = []string{line}
 		} else if len(currentFailure) > 0 {
 			// Continue collecting details for current failure
-			if strings.Contains(line, "Failure/Error:") ||
-			   strings.Contains(line, "expected") ||
-			   strings.Contains(line, "got") ||
-			   strings.HasPrefix(line, "# ./spec/") {
+            if strings.Contains(line, "Failure/Error:") ||
+               strings.Contains(strings.ToLower(line), "expected") ||
+               strings.Contains(strings.ToLower(line), "got") ||
+               strings.HasPrefix(line, "# ./spec/") {
 				currentFailure = append(currentFailure, line)
 			}
 		}
@@ -555,11 +585,12 @@ func formatRSpecFailures(lines []string) string {
 		result = append(result, formatSingleFailure(currentFailure)...)
 	}
 	
-	if len(result) > 0 {
+    if len(result) > 0 {
 		return strings.Join(result, "\n")
 	}
 	
-	return "RSpec tests failed - see verbose output for details"
+    // Summarize failures we parsed, keeping it concise
+    return "RSpec tests failed"
 }
 
 // formatSingleFailure formats a single RSpec failure
