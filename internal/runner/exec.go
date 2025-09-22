@@ -83,9 +83,20 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 	summary := report.Summary{TotalWorkflows: len(workflows)}
 	results := make([]report.StepResult, 0)
 
+	// Initialize all jobs upfront and start the live timer
+	if renderer, ok := r.opts.StreamingRenderer.(*output.StreamingPrettyRenderer); ok {
+		renderer.InitializeAllJobs(workflows)
+		renderer.StartTimer()
+	}
+
 	for _, wf := range workflows {
 		summary.TotalJobs += len(wf.Jobs)
 		for _, job := range wf.Jobs {
+			// Start the job
+			if renderer, ok := r.opts.StreamingRenderer.(*output.StreamingPrettyRenderer); ok {
+				renderer.StartJob(job.Name)
+			}
+			
 			// Count run steps for this job
 			stepCount := 0
 			for _, step := range job.Steps {
@@ -94,17 +105,13 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 				}
 			}
 			
-			if stepCount > 0 {
-				// Initialize streaming for this job
-				if err := r.opts.StreamingRenderer.InitializeWorkflow(wf.Name, job.Name, stepCount); err != nil {
-					return nil, summary, err
-				}
-			}
+			// Jobs are already initialized upfront, no need to initialize here
 
 			for _, step := range job.Steps {
 				if step.Run == "" || step.Uses != "" {
 					continue
 				}
+				summary.TotalSteps++
 
 				result := report.StepResult{
 					WorkflowPath: wf.Path,
@@ -125,7 +132,7 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 					result.Stderr = msg
 					summary.Skipped++
 					results = append(results, result)
-					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, msg); err != nil {
+					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, "", msg, step.Run); err != nil {
 						return nil, summary, err
 					}
 					continue
@@ -135,7 +142,7 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 					result.Status = "skipped"
 					summary.Skipped++
 					results = append(results, result)
-					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, ""); err != nil {
+					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, "", "", step.Run); err != nil {
 						return nil, summary, err
 					}
 					continue
@@ -164,12 +171,12 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 				results = append(results, result)
 				
 				// Complete step with streaming update
-				if err := r.opts.StreamingRenderer.CompleteStep(step.Name, result.Status, result.Duration, result.Stderr); err != nil {
+				if err := r.opts.StreamingRenderer.CompleteStep(step.Name, result.Status, result.Duration, result.Stdout, result.Stderr, step.Run); err != nil {
 					return nil, summary, err
 				}
 			}
 			
-			// Complete job with streaming update
+			// Complete job with streaming update (after all steps in the job are done)
 			if err := r.opts.StreamingRenderer.CompleteJob(); err != nil {
 				return nil, summary, err
 			}

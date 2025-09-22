@@ -76,7 +76,8 @@ func runExecute(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		}
-		if len(warnings) > 0 {
+		// Only show warnings for non-streaming mode
+		if !runOpts.Streaming && len(warnings) > 0 {
 			for _, msg := range warnings {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", msg)
 			}

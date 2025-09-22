@@ -30,6 +30,28 @@ $ detest run --verbose
 $ DETEST_ALLOW_PRIVILEGED=1 detest run
 ```
 
+### Streaming UI (GitHub-style)
+
+When format is `pretty` (default) and not in verbose mode, Detest renders a live, GitHub-style summary:
+
+- ✅/❌ per job with individual timers
+- 🟢 while a job is running, ⏳ when queued
+- Failed jobs expand to show step breakdown, durations, the exact `Command:` run, and cleaned failure output (including parsed RSpec failures)
+- Routine CI noise is suppressed in streaming mode to keep output focused
+
+Example:
+
+```
+✅ lint (3.2s)
+✅ scan_js (1.9s)
+❌ test (31.4s)
+    ⏭️ Install packages (0s)
+    ✅ Install modules (247ms)
+    ❌ Run tests (31.1s)
+      Command: bin/rails db:setup spec
+      spec/jobs/foo_spec.rb:123 expected X got Y
+```
+
 Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept multiple values and support substring or `/regex/` matches. When no workflows are provided, Detest automatically loads `.github/workflows/*.yml`/`*.yaml` in lexicographic order. Execution stops with a non-zero exit code if any step fails, but all remaining steps continue to run so you see the full picture.
 
 ## Environment Support
@@ -70,7 +92,7 @@ privileged_command_patterns:
 
 - ✅ GitHub Actions workflow parser (run steps only)
 - ✅ Sequential execution with env/shell/working-directory resolution
-- ✅ Pretty & JSON reporters with per-step duration/excerpts
+- ✅ Pretty & JSON reporters; streaming GitHub-style UI with live timers
 - ✅ Dry-run, verbose streaming, job/step filters, repeatable `--workflow`
 - ✅ Environment inheritance with asdf/rbenv support
 - ✅ Cross-shell compatibility (bash, zsh, ksh, sh, fish)
