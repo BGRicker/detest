@@ -40,7 +40,7 @@ These may appear in the future roadmap.
 	3.	As a developer, I want to selectively run only linting jobs (testdrive run --job lint) so I can get fast targeted feedback.
 	4.	As a team lead, I want CI checks enforced consistently across contributors without needing to maintain duplicate Makefiles.
 	5.	As a contributor, I want minimal, readable output that tells me what failed and why, without scrolling through verbose CI logs.
-	6.	As a DevOps engineer, I want Detest to honor .ruby-version or .node-version so I can detect mismatched local environments before problems occur.
+	6.	As a DevOps engineer, I want Testdrive to honor .ruby-version or .node-version so I can detect mismatched local environments before problems occur.
 
 ⸻
 

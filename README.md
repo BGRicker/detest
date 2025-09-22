@@ -32,7 +32,7 @@ $ TESTDRIVE_ALLOW_PRIVILEGED=1 testdrive run
 
 ### Streaming UI (GitHub-style)
 
-When format is `pretty` (default) and not in verbose mode, Detest renders a live, GitHub-style summary:
+When format is `pretty` (default) and not in verbose mode, Testdrive renders a live, GitHub-style summary:
 
 - ✅/❌ per job with individual timers
 - 🟢 while a job is running, ⏳ when queued
@@ -52,7 +52,7 @@ Example:
       spec/jobs/foo_spec.rb:123 expected X got Y
 ```
 
-Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept multiple values and support substring or `/regex/` matches. When no workflows are provided, Detest automatically loads `.github/workflows/*.yml`/`*.yaml` in lexicographic order. Execution stops with a non-zero exit code if any step fails, but all remaining steps continue to run so you see the full picture.
+Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept multiple values and support substring or `/regex/` matches. When no workflows are provided, Testdrive automatically loads `.github/workflows/*.yml`/`*.yaml` in lexicographic order. Execution stops with a non-zero exit code if any step fails, but all remaining steps continue to run so you see the full picture.
 
 ## Environment Support
 
