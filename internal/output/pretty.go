@@ -22,6 +22,12 @@ type StreamingRenderer interface {
 	RenderSummary(summary report.Summary) error
 }
 
+// TimerController is an optional interface for renderers that support a live timer.
+type TimerController interface {
+    StartTimer()
+    StopTimer()
+}
+
 // PrettyRenderer renders execution results in a human-friendly format.
 type PrettyRenderer struct {
 	out io.Writer
@@ -33,7 +39,7 @@ type StreamingPrettyRenderer struct {
 	workflows []workflowInfo
 	currentWorkflow int
 	currentJob int
-    // timer controls
+    // Timer controls for live updates
     stopTimer chan struct{}
 }
 

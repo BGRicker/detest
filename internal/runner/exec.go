@@ -62,10 +62,8 @@ func New(opts Options) *Runner {
 	}
 	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
 	
-	// Ensure streaming is only enabled when renderer is provided
-	if opts.Streaming && opts.StreamingRenderer == nil {
-		opts.Streaming = false
-	}
+    // Streaming requires a renderer; callers should set both together.
+    // Validation is handled by `cmd` layer; avoid duplicating checks here.
 	
 	return &Runner{opts: opts}
 }
@@ -87,7 +85,7 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
     if r.opts.StreamingRenderer != nil {
         _ = r.opts.StreamingRenderer.InitializeAllJobs(workflows)
         // Optionally start a live timer if supported
-        if timer, ok := r.opts.StreamingRenderer.(interface{ StartTimer(); StopTimer() }); ok {
+        if timer, ok := r.opts.StreamingRenderer.(output.TimerController); ok {
             timer.StartTimer()
             defer timer.StopTimer()
         }
@@ -100,7 +98,7 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
             if r.opts.StreamingRenderer != nil {
                 _ = r.opts.StreamingRenderer.StartJob(job.Name)
             }
-            // Jobs are already initialized upfront, no need to initialize here
+            // All jobs have already been registered with the renderer at the start; no need to register again here
 
 			for _, step := range job.Steps {
 				if step.Run == "" || step.Uses != "" {
