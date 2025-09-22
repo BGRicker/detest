@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bgricker/detest/internal/output"
 	"github.com/bgricker/detest/internal/provider"
 	"github.com/bgricker/detest/internal/report"
 )
@@ -30,6 +31,8 @@ type Options struct {
 	Now                func() time.Time
 	AllowPrivileged    bool
 	PrivilegedPatterns []string
+	Streaming          bool
+	StreamingRenderer  output.StreamingRenderer
 }
 
 // Runner executes workflow steps sequentially.
@@ -58,11 +61,133 @@ func New(opts Options) *Runner {
 		opts.PrivilegedPatterns = DefaultPrivilegedPatterns()
 	}
 	opts.PrivilegedPatterns = append([]string{}, opts.PrivilegedPatterns...)
+	
+    // Streaming requires a renderer; callers should set both together.
+    // Validation is handled by `cmd` layer; avoid duplicating checks here.
+	
 	return &Runner{opts: opts}
 }
 
 // Run executes the provided workflows returning step results and a summary.
 func (r *Runner) Run(workflows []provider.Workflow) ([]report.StepResult, report.Summary, error) {
+	if r.opts.Streaming {
+		return r.runStreaming(workflows)
+	}
+	return r.runBatch(workflows)
+}
+
+// runStreaming executes workflows with real-time streaming updates.
+func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResult, report.Summary, error) {
+	summary := report.Summary{TotalWorkflows: len(workflows)}
+	results := make([]report.StepResult, 0)
+
+    // Initialize all jobs upfront via the renderer interface
+    if r.opts.StreamingRenderer != nil {
+        _ = r.opts.StreamingRenderer.InitializeAllJobs(workflows)
+        // Optionally start a live timer if supported
+        if timer, ok := r.opts.StreamingRenderer.(output.TimerController); ok {
+            timer.StartTimer()
+            defer timer.StopTimer()
+        }
+    }
+
+	for _, wf := range workflows {
+		summary.TotalJobs += len(wf.Jobs)
+		for _, job := range wf.Jobs {
+            // Start the job via the interface
+            if r.opts.StreamingRenderer != nil {
+                _ = r.opts.StreamingRenderer.StartJob(job.Name)
+            }
+            // All jobs have already been registered with the renderer at the start; no need to register again here
+
+			for _, step := range job.Steps {
+				if step.Run == "" || step.Uses != "" {
+					continue
+				}
+				summary.TotalSteps++
+
+				result := report.StepResult{
+					WorkflowPath: wf.Path,
+					WorkflowName: wf.Name,
+					JobName:      job.Name,
+					StepName:     step.Name,
+					StepRun:      step.Run,
+					DryRun:       r.opts.DryRun,
+				}
+
+				// Start step
+				if err := r.opts.StreamingRenderer.StartStep(step.Name); err != nil {
+					return nil, summary, err
+				}
+
+				if msg, skip := shouldSkipStep(step.Run, r.opts); skip {
+					result.Status = "skipped"
+					result.Stderr = msg
+					summary.Skipped++
+					results = append(results, result)
+					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, "", msg, step.Run); err != nil {
+						return nil, summary, err
+					}
+					continue
+				}
+
+				if r.opts.DryRun {
+					result.Status = "skipped"
+					summary.Skipped++
+					results = append(results, result)
+					if err := r.opts.StreamingRenderer.CompleteStep(step.Name, "skipped", 0, "", "", step.Run); err != nil {
+						return nil, summary, err
+					}
+					continue
+				}
+
+				start := r.opts.Now()
+				err := r.runStep(context.Background(), wf, job, step, &result)
+				result.Duration = r.opts.Now().Sub(start)
+				result.DurationMS = result.Duration.Milliseconds()
+
+				if err != nil {
+					result.Status = "failed"
+					result.Stderr = tailLines(result.Stderr, r.opts.TailLines)
+					result.Stdout = tailLines(result.Stdout, r.opts.TailLines)
+					summary.Failed++
+				} else {
+					result.Status = "passed"
+					summary.Passed++
+				}
+
+				summary.Duration += result.Duration
+				if result.Status == "failed" {
+					summary.ExitCode = 1
+				}
+
+				results = append(results, result)
+				
+				// Complete step with streaming update
+				if err := r.opts.StreamingRenderer.CompleteStep(step.Name, result.Status, result.Duration, result.Stdout, result.Stderr, step.Run); err != nil {
+					return nil, summary, err
+				}
+			}
+			
+			// Complete job with streaming update (after all steps in the job are done)
+			if err := r.opts.StreamingRenderer.CompleteJob(); err != nil {
+				return nil, summary, err
+			}
+		}
+	}
+
+	summary.DurationMS = summary.Duration.Milliseconds()
+	
+	// Render final summary
+	if err := r.opts.StreamingRenderer.RenderSummary(summary); err != nil {
+		return nil, summary, err
+	}
+	
+	return results, summary, nil
+}
+
+// runBatch executes workflows in batch mode (original behavior).
+func (r *Runner) runBatch(workflows []provider.Workflow) ([]report.StepResult, report.Summary, error) {
 	summary := report.Summary{TotalWorkflows: len(workflows)}
 	results := make([]report.StepResult, 0)
 

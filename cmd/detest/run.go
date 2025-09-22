@@ -47,6 +47,13 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		AllowPrivileged:    allowPrivileged,
 		PrivilegedPatterns: append([]string{}, cfg.PrivilegedCommandPatterns...),
 	}
+
+        // Enable streaming for pretty format when not verbose and not dry-run
+        if strings.ToLower(cfg.Format) == config.FormatPretty && !cfg.Verbose && !cfg.DryRun {
+			runOpts.Streaming = true
+			runOpts.StreamingRenderer = output.NewStreamingPretty(cmd.OutOrStdout())
+		}
+
 	execRunner := runner.New(runOpts)
 	results, summary, err := execRunner.Run(filtered.workflows)
 	if err != nil {
@@ -62,11 +69,15 @@ func runExecute(cmd *cobra.Command, args []string) error {
 
 	switch strings.ToLower(cfg.Format) {
 	case config.FormatPretty:
-		renderer := output.NewPretty(cmd.OutOrStdout())
-		if err := renderer.RenderResults(results, summary); err != nil {
-			return err
+		// Only use pretty renderer if not streaming
+		if !runOpts.Streaming {
+			renderer := output.NewPretty(cmd.OutOrStdout())
+			if err := renderer.RenderResults(results, summary); err != nil {
+				return err
+			}
 		}
-		if len(warnings) > 0 {
+		// Only show warnings for non-streaming mode
+		if !runOpts.Streaming && len(warnings) > 0 {
 			for _, msg := range warnings {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", msg)
 			}
