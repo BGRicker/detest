@@ -33,6 +33,8 @@ type StreamingPrettyRenderer struct {
 	workflows []workflowInfo
 	currentWorkflow int
 	currentJob int
+    // timer controls
+    stopTimer chan struct{}
 }
 
 type workflowInfo struct {
@@ -339,18 +341,31 @@ func (s *StreamingPrettyRenderer) RenderSummary(summary report.Summary) error {
 }
 
 // StartTimer starts a background timer that updates running jobs with live elapsed time
+// Optional timer control interface
 func (s *StreamingPrettyRenderer) StartTimer() {
-	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-		
-		for {
-			select {
-			case <-ticker.C:
-				s.updateRunningJobs()
-			}
-		}
-	}()
+    if s.stopTimer != nil {
+        return
+    }
+    s.stopTimer = make(chan struct{})
+    go func() {
+        ticker := time.NewTicker(1 * time.Second)
+        defer ticker.Stop()
+        for {
+            select {
+            case <-ticker.C:
+                s.updateRunningJobs()
+            case <-s.stopTimer:
+                return
+            }
+        }
+    }()
+}
+
+func (s *StreamingPrettyRenderer) StopTimer() {
+    if s.stopTimer != nil {
+        close(s.stopTimer)
+        s.stopTimer = nil
+    }
 }
 
 // updateRunningJobs updates all running jobs with current elapsed time

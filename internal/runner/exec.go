@@ -83,29 +83,24 @@ func (r *Runner) runStreaming(workflows []provider.Workflow) ([]report.StepResul
 	summary := report.Summary{TotalWorkflows: len(workflows)}
 	results := make([]report.StepResult, 0)
 
-	// Initialize all jobs upfront and start the live timer
-	if renderer, ok := r.opts.StreamingRenderer.(*output.StreamingPrettyRenderer); ok {
-		renderer.InitializeAllJobs(workflows)
-		renderer.StartTimer()
-	}
+    // Initialize all jobs upfront via the renderer interface
+    if r.opts.StreamingRenderer != nil {
+        _ = r.opts.StreamingRenderer.InitializeAllJobs(workflows)
+        // Optionally start a live timer if supported
+        if timer, ok := r.opts.StreamingRenderer.(interface{ StartTimer(); StopTimer() }); ok {
+            timer.StartTimer()
+            defer timer.StopTimer()
+        }
+    }
 
 	for _, wf := range workflows {
 		summary.TotalJobs += len(wf.Jobs)
 		for _, job := range wf.Jobs {
-			// Start the job
-			if renderer, ok := r.opts.StreamingRenderer.(*output.StreamingPrettyRenderer); ok {
-				renderer.StartJob(job.Name)
-			}
-			
-			// Count run steps for this job
-			stepCount := 0
-			for _, step := range job.Steps {
-				if step.Run != "" && step.Uses == "" {
-					stepCount++
-				}
-			}
-			
-			// Jobs are already initialized upfront, no need to initialize here
+            // Start the job via the interface
+            if r.opts.StreamingRenderer != nil {
+                _ = r.opts.StreamingRenderer.StartJob(job.Name)
+            }
+            // Jobs are already initialized upfront, no need to initialize here
 
 			for _, step := range job.Steps {
 				if step.Run == "" || step.Uses != "" {
