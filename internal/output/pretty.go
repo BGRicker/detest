@@ -272,12 +272,12 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 					}
 				}
 				
-                // If job failed, update the job line in-place via the normal updater, then show details
-                if job.status == "failed" {
-                    s.updateRunningJobs()
-                    s.showJobDetails(job)
-                    return nil
-                }
+				// If job failed, update all job lines to show final status, then show details
+				if job.status == "failed" {
+					s.updateRunningJobs()
+					s.showJobDetails(job)
+					return nil
+				}
 				
 				// Force an immediate display update to show the final job status
 				s.updateRunningJobs()
@@ -383,12 +383,12 @@ func (s *StreamingPrettyRenderer) updateRunningJobs() {
 		totalJobs += len(workflow.jobs)
 	}
 	
-    // Move cursor up to the first job line, but guard against negative movement when nothing printed yet
-    if totalJobs > 0 {
-        for i := 0; i < totalJobs; i++ {
-            fmt.Fprintf(s.out, "\033[1A") // Move up one line
-        }
-    }
+	// Move cursor up to the first job line, but guard against negative movement when no jobs exist
+	if totalJobs > 0 {
+		for i := 0; i < totalJobs; i++ {
+			fmt.Fprintf(s.out, "\033[1A") // Move up one line
+		}
+	}
 	
 	// Update all jobs
 	for _, workflow := range s.workflows {
@@ -559,7 +559,7 @@ func formatRSpecFailures(lines []string) string {
                 }
                 result = append(result, fmt.Sprintf("        ❌ %s", path))
             }
-            // Do not treat other lines in this block
+			// Do not process other lines in this block
             continue
         }
 		
