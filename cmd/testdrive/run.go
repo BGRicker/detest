@@ -48,7 +48,7 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		PrivilegedPatterns: append([]string{}, cfg.PrivilegedCommandPatterns...),
 	}
 
-        // Enable streaming for pretty format when not verbose and not dry-run
+    	// Enable streaming for pretty format when not verbose and not dry-run
         if strings.ToLower(cfg.Format) == config.FormatPretty && !cfg.Verbose && !cfg.DryRun {
 			runOpts.Streaming = true
 			runOpts.StreamingRenderer = output.NewStreamingPretty(cmd.OutOrStdout())
@@ -61,7 +61,10 @@ func runExecute(cmd *cobra.Command, args []string) error {
 	}
 
 	if summary.TotalSteps == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No matching jobs or steps")
+		// In streaming mode, the renderer already showed initial job lines; don't print this footer.
+		if !runOpts.Streaming {
+			fmt.Fprintln(cmd.OutOrStdout(), "No matching jobs or steps")
+		}
 		return nil
 	}
 
