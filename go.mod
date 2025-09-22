@@ -1,4 +1,4 @@
-module github.com/bgricker/detest
+module github.com/bgricker/testdrive
 
 go 1.25.1
 

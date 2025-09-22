@@ -1,6 +1,6 @@
 IMPLEMENTATION_SPEC.md
 
-Project: Detest
+Project: Testdrive
 
 Goal:
 Build a Go CLI that reads CI workflow files and runs the same run: steps locally with concise output. Start with GitHub Actions support; design for pluggable providers (GitLab, CircleCI) later.
@@ -22,8 +22,8 @@ High-Level Requirements
 CLI Surface (v1)
 
 Commands
-	•	detest list — Discover workflows, resolve jobs/steps, print what would run.
-	•	detest run — Execute resolved steps locally.
+	•	testdrive list — Discover workflows, resolve jobs/steps, print what would run.
+	•	testdrive run — Execute resolved steps locally.
 
 Global Flags
 	•	--provider [auto|github] (default: auto)
@@ -37,7 +37,7 @@ Global Flags
 
 Config File
 
-Optional .detest.yml in repo root; merged with flags (flags win).
+Optional .testdrive.yml in repo root; merged with flags (flags win).
 
 provider: github                  # auto|github
 workflows:
@@ -59,8 +59,8 @@ warn:
 
 Project Layout
 
-detest/
-├─ cmd/detest/main.go                # Cobra root command wiring
+testdrive/
+├─ cmd/testdrive/main.go                # Cobra root command wiring
 ├─ internal/
 │  ├─ discovery/fs.go                # find workflow files
 │  ├─ provider/
@@ -74,7 +74,7 @@ detest/
 │  ├─ output/
 │  │  ├─ pretty.go                   # concise grouped rendering
 │  │  └─ json.go                     # machine-readable report
-│  ├─ config/config.go               # load/merge .detest.yml + flags
+│  ├─ config/config.go               # load/merge .testdrive.yml + flags
 │  └─ version/warn.go                # .ruby-version / .node-version checks
 ├─ testdata/
 │  ├─ workflows/ci_basic.yml
@@ -232,7 +232,7 @@ Tests
 	•	Integration-lite:
 	•	run --dry-run against fixtures (deterministic command list).
 	•	Fake commands via sh -c 'echo ok' in fixtures to validate success/failure paths.
-	•	CI for Detest itself (GitHub Actions):
+	•	CI for Testdrive itself (GitHub Actions):
 	•	go build, go vet, golangci-lint, go test ./....
 
 ⸻
@@ -249,16 +249,16 @@ Roadmap (post-v1)
 	•	Providers: GitLab CI (.gitlab-ci.yml), CircleCI (.circleci/config.yml).
 	•	Matrix expansion and needs graph to retain ordering and optional parallelism.
 	•	Optional service boot via Docker/Compose with minimal config.
-	•	Watch mode (detest watch) to re-run on file changes.
+	•	Watch mode (testdrive watch) to re-run on file changes.
 	•	Reporters: JUnit, GitHub Annotations (via JSON).
 	•	Plugin interface for custom step handlers.
 
 ⸻
 
 Acceptance Criteria
-	•	detest list prints workflows, jobs, and resolved run steps in deterministic order.
-	•	detest run --dry-run prints the exact shell commands (with env/cwd) that would execute.
-	•	detest run executes steps, honors env/shell/working-directory, and returns exit code 1 when any step fails.
+	•	testdrive list prints workflows, jobs, and resolved run steps in deterministic order.
+	•	testdrive run --dry-run prints the exact shell commands (with env/cwd) that would execute.
+	•	testdrive run executes steps, honors env/shell/working-directory, and returns exit code 1 when any step fails.
 	•	--job, --only-step, --skip-step filter correctly and are reflected in list and run.
 	•	--format json outputs valid JSON matching the schema above.
 	•	Parser logs warnings (but does not crash) for services, matrix, and if:.

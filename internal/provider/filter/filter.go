@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bgricker/detest/internal/provider"
+    "github.com/bgricker/testdrive/internal/provider"
 )
 
 // Pattern represents a compiled filter condition supporting substring and regex matching.

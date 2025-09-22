@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bgricker/detest/internal/provider"
+    "github.com/bgricker/testdrive/internal/provider"
 )
 
 func TestRunnerDryRun(t *testing.T) {

@@ -3,7 +3,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/bgricker/detest/internal/provider"
+    "github.com/bgricker/testdrive/internal/provider"
 )
 
 func TestFilterWorkflowsByJob(t *testing.T) {
