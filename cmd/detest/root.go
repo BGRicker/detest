@@ -6,8 +6,8 @@ import (
 
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:           "detest",
-		Short:         "Detest executes GitHub Actions steps locally",
+        Use:           "testdrive",
+        Short:         "Testdrive executes GitHub Actions steps locally",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}

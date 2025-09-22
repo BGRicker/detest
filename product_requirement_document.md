@@ -1,6 +1,6 @@
 PRODUCT_REQUIREMENTS_DOCUMENT.md
 
-Product: Detest
+Product: Testdrive
 
 Run your CI’s tests locally, without the push.
 
@@ -8,10 +8,10 @@ Run your CI’s tests locally, without the push.
 
 1. Overview
 
-Detest is a command-line tool that allows developers to execute the same test, lint, and audit steps defined in their CI/CD pipelines directly on their local machines.
+Testdrive is a command-line tool that allows developers to execute the same test, lint, and audit steps defined in their CI/CD pipelines directly on their local machines.
 It is written in Go, installable as a binary (eventually via Homebrew), and initially supports GitHub Actions workflows.
 
-By parsing CI workflow definitions (.yml/.yaml), Detest ensures consistency between local and remote runs while eliminating the overhead of remembering commands or maintaining separate Makefiles.
+By parsing CI workflow definitions (.yml/.yaml), Testdrive ensures consistency between local and remote runs while eliminating the overhead of remembering commands or maintaining separate Makefiles.
 
 ⸻
 
@@ -35,9 +35,9 @@ These may appear in the future roadmap.
 ⸻
 
 4. User Stories
-	1.	As a developer, I want to run all my project’s CI checks with one command (detest run) so I can catch issues locally before pushing.
-	2.	As a developer, I want to see which jobs and steps will run (detest list) so I understand what CI expects.
-	3.	As a developer, I want to selectively run only linting jobs (detest run --job lint) so I can get fast targeted feedback.
+	1.	As a developer, I want to run all my project’s CI checks with one command (testdrive run) so I can catch issues locally before pushing.
+	2.	As a developer, I want to see which jobs and steps will run (testdrive list) so I understand what CI expects.
+	3.	As a developer, I want to selectively run only linting jobs (testdrive run --job lint) so I can get fast targeted feedback.
 	4.	As a team lead, I want CI checks enforced consistently across contributors without needing to maintain duplicate Makefiles.
 	5.	As a contributor, I want minimal, readable output that tells me what failed and why, without scrolling through verbose CI logs.
 	6.	As a DevOps engineer, I want Detest to honor .ruby-version or .node-version so I can detect mismatched local environments before problems occur.
@@ -68,7 +68,7 @@ These may appear in the future roadmap.
 	•	Dry run: print commands without executing.
 
 5.5 Configuration
-	•	Optional .detest.yml for overrides (provider, workflow paths, job/step filters, output).
+	•	Optional .testdrive.yml for overrides (provider, workflow paths, job/step filters, output).
 	•	CLI flags override config.
 
 5.6 Environment Warnings
@@ -94,7 +94,7 @@ These may appear in the future roadmap.
 	•	Foreman/Overmind: Process managers, but not CI-aware.
 	•	Make/Rake: Require duplication of CI logic.
 
-Detest differentiators:
+Testdrive differentiators:
 	•	Lighter, faster, no Docker dependency.
 	•	CI config is the single source of truth.
 	•	Friendly output designed for local iteration.
@@ -103,10 +103,10 @@ Detest differentiators:
 ⸻
 
 8. Success Metrics
-	•	Adoption: Number of GitHub repos integrating Detest into contribution docs.
+	•	Adoption: Number of GitHub repos integrating Testdrive into contribution docs.
 	•	Developer efficiency: Reduction in “push → fail → fix → push again” cycles.
 	•	Community engagement: GitHub stars, contributions, issues opened/closed.
-	•	Reliability: Consistency of results between local Detest and remote CI runs.
+	•	Reliability: Consistency of results between local Testdrive and remote CI runs.
 
 ⸻
 
@@ -136,9 +136,9 @@ Detest differentiators:
 
 11. Open Questions
 	1.	Should failed steps stop execution immediately or continue to run remaining steps? (Default: continue, configurable later.)
-	2.	Should Detest auto-install missing runtimes (Ruby, Node) or only warn? (Default: warn.)
+	2.	Should Testdrive auto-install missing runtimes (Ruby, Node) or only warn? (Default: warn.)
 	3.	Should service helpers (Postgres, Redis) be part of core or plugins?
 
 ⸻
 
-Do you want me to also generate a sample GitHub issue template (feature request/bug report) so contributors know how to engage with Detest from day one?
+Do you want me to also generate a sample GitHub issue template (feature request/bug report) so contributors know how to engage with Testdrive from day one?

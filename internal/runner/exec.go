@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bgricker/detest/internal/output"
-	"github.com/bgricker/detest/internal/provider"
-	"github.com/bgricker/detest/internal/report"
+    "github.com/bgricker/testdrive/internal/output"
+    "github.com/bgricker/testdrive/internal/provider"
+    "github.com/bgricker/testdrive/internal/report"
 )
 
 // Options configure how the runner executes steps.
@@ -448,7 +448,7 @@ func shouldSkipStep(script string, opts Options) (string, bool) {
 			continue
 		}
 		if matched {
-			return fmt.Sprintf("skipped privileged command matching pattern %q; set DETEST_ALLOW_PRIVILEGED=1 to run", pattern), true
+            return fmt.Sprintf("skipped privileged command matching pattern %q; set TESTDRIVE_ALLOW_PRIVILEGED=1 to run", pattern), true
 		}
 	}
 	return "", false

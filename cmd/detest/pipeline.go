@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bgricker/detest/internal/config"
-	"github.com/bgricker/detest/internal/discovery"
-	"github.com/bgricker/detest/internal/provider"
-	"github.com/bgricker/detest/internal/provider/filter"
-	githubprovider "github.com/bgricker/detest/internal/provider/github"
-	"github.com/bgricker/detest/internal/version"
+    "github.com/bgricker/testdrive/internal/config"
+    "github.com/bgricker/testdrive/internal/discovery"
+    "github.com/bgricker/testdrive/internal/provider"
+    "github.com/bgricker/testdrive/internal/provider/filter"
+    githubprovider "github.com/bgricker/testdrive/internal/provider/github"
+    "github.com/bgricker/testdrive/internal/version"
 )
 
 // pipelineData bundles parsed workflows with warnings and metadata.

@@ -1,33 +1,33 @@
-# Detest
+# Testdrive
 
-Detest mirrors your GitHub Actions `run:` steps locally so you can catch failures before pushing. It discovers workflows, respects job and step filters, and outputs either a concise pretty report or machine-friendly JSON.
+Testdrive mirrors your GitHub Actions `run:` steps locally so you can catch failures before pushing. It discovers workflows, respects job and step filters, and outputs either a concise pretty report or machine-friendly JSON.
 
 ## Install
 
 ```bash
-go install github.com/bgricker/detest/cmd/detest@latest
+go install github.com/bgricker/testdrive/cmd/testdrive@latest
 ```
 
 ## Usage
 
 ```bash
 # List the jobs and steps that would run
-$ detest list
+$ testdrive list
 
 # Execute all run: steps sequentially
-$ detest run
+$ testdrive run
 
 # Preview commands without executing
-$ detest run --dry-run
+$ testdrive run --dry-run
 
 # Filter by job/steps and switch formats
-$ detest run --job test --only-step "Lint" --format json
+$ testdrive run --job test --only-step "Lint" --format json
 
 # Stream command output as it runs
-$ detest run --verbose
+$ testdrive run --verbose
 
 # Allow privileged commands (e.g., sudo/apt-get) when absolutely necessary
-$ DETEST_ALLOW_PRIVILEGED=1 detest run
+$ TESTDRIVE_ALLOW_PRIVILEGED=1 testdrive run
 ```
 
 ### Streaming UI (GitHub-style)
@@ -56,7 +56,7 @@ Flags such as `--workflow`, `--job`, `--only-step`, and `--skip-step` accept mul
 
 ## Environment Support
 
-Detest automatically inherits your shell environment and supports version managers:
+Testdrive automatically inherits your shell environment and supports version managers:
 
 - **asdf**: Automatically sources `asdf.sh` (or `asdf.fish` for fish shell) to ensure correct Ruby, Node, Python versions
 - **rbenv**: Works with your existing rbenv setup
@@ -66,7 +66,7 @@ Detest automatically inherits your shell environment and supports version manage
 
 ## Configuration
 
-An optional `.detest.yml` can provide defaults for the CLI. Command-line flags always win over config values.
+An optional `.testdrive.yml` can provide defaults for the CLI. Command-line flags always win over config values.
 
 ```yaml
 provider: github          # auto|github (defaults to auto)

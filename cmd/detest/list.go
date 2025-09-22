@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bgricker/detest/internal/config"
-	"github.com/bgricker/detest/internal/output"
-	"github.com/bgricker/detest/internal/provider"
-	"github.com/bgricker/detest/internal/report"
+    "github.com/bgricker/testdrive/internal/config"
+    "github.com/bgricker/testdrive/internal/output"
+    "github.com/bgricker/testdrive/internal/provider"
+    "github.com/bgricker/testdrive/internal/report"
 	"github.com/spf13/cobra"
 )
 

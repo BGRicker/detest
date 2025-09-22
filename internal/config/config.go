@@ -54,10 +54,10 @@ const (
 	FormatJSON = "json"
 )
 
-// Load reads .detest.yml from the repository root when present. Missing files are ignored.
+// Load reads .testdrive.yml from the repository root when present. Missing files are ignored.
 func Load(root string) (Config, error) {
 	cfg := Default()
-	path := filepath.Join(root, ".detest.yml")
+    path := filepath.Join(root, ".testdrive.yml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

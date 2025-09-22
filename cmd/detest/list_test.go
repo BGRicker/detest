@@ -88,7 +88,7 @@ jobs:
 only_step:
   - step one
 `)
-	if err := os.WriteFile(filepath.Join(tmp, ".detest.yml"), configYAML, 0o644); err != nil {
+    if err := os.WriteFile(filepath.Join(tmp, ".testdrive.yml"), configYAML, 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 

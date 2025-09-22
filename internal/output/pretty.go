@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bgricker/detest/internal/provider"
-	"github.com/bgricker/detest/internal/report"
+    "github.com/bgricker/testdrive/internal/provider"
+    "github.com/bgricker/testdrive/internal/report"
 )
 
 // StreamingRenderer interface for real-time step updates.

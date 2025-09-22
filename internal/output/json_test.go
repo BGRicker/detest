@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/bgricker/detest/internal/provider"
-	"github.com/bgricker/detest/internal/report"
+    "github.com/bgricker/testdrive/internal/provider"
+    "github.com/bgricker/testdrive/internal/report"
 )
 
 func TestJSONRenderer(t *testing.T) {

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/bgricker/detest/internal/config"
+    "github.com/bgricker/testdrive/internal/config"
 	"github.com/spf13/cobra"
 )
 

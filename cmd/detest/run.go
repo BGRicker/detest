@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bgricker/detest/internal/config"
-	"github.com/bgricker/detest/internal/output"
-	"github.com/bgricker/detest/internal/runner"
+    "github.com/bgricker/testdrive/internal/config"
+    "github.com/bgricker/testdrive/internal/output"
+    "github.com/bgricker/testdrive/internal/runner"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	allowPrivileged := os.Getenv("DETEST_ALLOW_PRIVILEGED") == "1"
+    allowPrivileged := os.Getenv("TESTDRIVE_ALLOW_PRIVILEGED") == "1"
 
 	runOpts := runner.Options{
 		Root:               root,
