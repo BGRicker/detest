@@ -41,6 +41,10 @@ type StreamingPrettyRenderer struct {
 	currentJob int
     // Timer controls for live updates
     stopTimer chan struct{}
+    // Track the current line we're on for output
+    currentLine int
+    // Track total lines printed to avoid cursor positioning issues
+    totalLinesPrinted int
 }
 
 type workflowInfo struct {
@@ -55,6 +59,7 @@ type jobInfo struct {
 	duration time.Duration
 	steps []stepResult
 	lineNumber int // For cursor positioning
+	detailsShown bool // Track if we've already shown detailed failure info
 }
 
 type stepResult struct {
@@ -161,10 +166,12 @@ func (p *PrettyRenderer) RenderResults(results []report.StepResult, summary repo
 	return nil
 }
 
-// InitializeAllJobs shows all jobs upfront with running indicators
+// InitializeAllJobs shows all jobs upfront with waiting indicators
 func (s *StreamingPrettyRenderer) InitializeAllJobs(workflows []provider.Workflow) error {
 	// Clear existing workflows
 	s.workflows = []workflowInfo{}
+	s.currentLine = 0
+	s.totalLinesPrinted = 0
 	
 	// Add all workflows and jobs
 	for _, wf := range workflows {
@@ -184,16 +191,32 @@ func (s *StreamingPrettyRenderer) InitializeAllJobs(workflows []provider.Workflo
 			
 			jobInfo := jobInfo{
 				name: job.Name,
-				status: "pending", // Start as pending, not running
+				status: "pending", // Start as pending
 				startTime: time.Now(),
 				duration: 0,
 				steps: make([]stepResult, 0, stepCount),
+				lineNumber: s.totalLinesPrinted, // Track which line this job is on
 			}
 			
-			workflow.jobs = append(workflow.jobs, jobInfo)
+			// Set initial status (first job starts running, others pending)
+            // First job is running; others pending. Do NOT call StartJob again for the
+            // first job or we will double-print. We only change state here, the line
+            // is already printed below.
+            if s.totalLinesPrinted == 0 {
+                jobInfo.status = "running"
+                jobInfo.startTime = time.Now()
+            }
 			
-			// Show the job as pending initially
-			fmt.Fprintf(s.out, "⏳ %s\n", job.Name)
+			// Print initial state - first job running, others waiting
+            if s.totalLinesPrinted == 0 {
+                fmt.Fprintf(s.out, "🟢 %s\n", job.Name)
+            } else {
+                fmt.Fprintf(s.out, "⏳ %s\n", job.Name)
+            }
+            // We just printed exactly one line for this job
+            s.totalLinesPrinted = s.totalLinesPrinted + 1
+			
+			workflow.jobs = append(workflow.jobs, jobInfo)
 		}
 		
 		s.workflows = append(s.workflows, workflow)
@@ -202,19 +225,23 @@ func (s *StreamingPrettyRenderer) InitializeAllJobs(workflows []provider.Workflo
 	return nil
 }
 
-// StartJob marks a job as running and starts its timer
+// StartJob marks a job as running and updates its display in place
 func (s *StreamingPrettyRenderer) StartJob(jobName string) error {
-	// Find the job and mark it as running
-	for _, workflow := range s.workflows {
-		for i := range workflow.jobs {
-			if workflow.jobs[i].name == jobName && workflow.jobs[i].status == "pending" {
-				workflow.jobs[i].status = "running"
-				workflow.jobs[i].startTime = time.Now() // Reset start time when job actually starts
-				return nil
-			}
-		}
-	}
-	return nil
+    // Find the job and mark it as running
+    for _, workflow := range s.workflows {
+        for i := range workflow.jobs {
+            if workflow.jobs[i].name == jobName && workflow.jobs[i].status == "pending" {
+                job := &workflow.jobs[i]
+                job.status = "running"
+                job.startTime = time.Now()
+                
+                // Update the display to show this job as running
+                s.updateJobLineInPlace(job)
+                return nil
+            }
+        }
+    }
+    return nil
 }
 
 // InitializeWorkflow is kept for interface compatibility but not used in the new approach
@@ -272,21 +299,97 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 					}
 				}
 				
-				// If job failed, update all job lines to show final status, then show details
+                // Update the display to show this job as completed
+                s.updateJobLineInPlace(job)
+                
+                // If job failed, show details immediately
 				if job.status == "failed" {
-					s.updateRunningJobs()
-					s.showJobDetails(job)
-					return nil
+                    s.showJobDetails(job)
+					job.detailsShown = true // Mark that we've shown detailed failure info
 				}
 				
-				// Force an immediate display update to show the final job status
-				s.updateRunningJobs()
-				return nil
+                return nil
 			}
 		}
 	}
 	
 	return nil
+}
+
+func isTerminal() bool {
+	// Simple check - always return true for now
+	// The issue might be elsewhere
+	return true
+}
+
+// updateJobLineInPlace updates a single job line in place
+func (s *StreamingPrettyRenderer) updateJobLineInPlace(_ *jobInfo) {
+    // Redraw the entire block deterministically.
+    // 1) Move cursor up by number of jobs
+    totalJobs := 0
+    for _, wf := range s.workflows {
+        totalJobs += len(wf.jobs)
+    }
+    for i := 0; i < totalJobs; i++ {
+        fmt.Fprint(s.out, "\033[1A")
+    }
+
+    // 2) Rewrite all job lines in fixed order, one line per job
+    for _, wf := range s.workflows {
+        for _, j := range wf.jobs {
+            switch j.status {
+            case "passed":
+                fmt.Fprintf(s.out, "\033[2K\r✅ %s (%s)\n", j.name, formatDuration(j.duration))
+            case "failed":
+                fmt.Fprintf(s.out, "\033[2K\r❌ %s (%s)\n", j.name, formatDuration(j.duration))
+            case "running":
+                // Show running with live elapsed
+                fmt.Fprintf(s.out, "\033[2K\r🟢 %s (%s)\n", j.name, formatDuration(time.Since(j.startTime)))
+            case "pending":
+                fmt.Fprintf(s.out, "\033[2K\r⏳ %s\n", j.name)
+            case "skipped":
+                fmt.Fprintf(s.out, "\033[2K\r⏭️ %s\n", j.name)
+            default:
+                fmt.Fprintf(s.out, "\033[2K\r%s\n", j.name)
+            }
+        }
+    }
+    // Cursor naturally ends one line below the block after printing \n each row
+}
+
+// overwriteJobLine rewrites one job line in-place with the given emoji and optional duration
+func (s *StreamingPrettyRenderer) overwriteJobLine(job *jobInfo, emoji string, withDuration bool) {
+    // Determine emoji based on job status if not provided
+    if emoji == "" {
+        switch job.status {
+        case "passed":
+            emoji = "✅"
+        case "failed":
+            emoji = "❌"
+        case "running":
+            emoji = "🟢"
+        case "pending":
+            emoji = "⏳"
+        case "skipped":
+            emoji = "⏭️"
+        default:
+            emoji = "❓"
+        }
+    }
+    
+    linesUp := s.totalLinesPrinted - job.lineNumber - 1
+    for j := 0; j < linesUp; j++ {
+        fmt.Fprintf(s.out, "\033[1A")
+    }
+    fmt.Fprintf(s.out, "\033[2K\r")
+    if withDuration {
+        fmt.Fprintf(s.out, "%s %s (%s)\n", emoji, job.name, formatDuration(job.duration))
+    } else {
+        fmt.Fprintf(s.out, "%s %s\n", emoji, job.name)
+    }
+    for j := 0; j < linesUp; j++ {
+        fmt.Fprintf(s.out, "\033[1B")
+    }
 }
 
 // updateJobLine updates the job status line in place
@@ -310,6 +413,7 @@ func (s *StreamingPrettyRenderer) updateJobLine(job *jobInfo) {
 
 // showJobDetails shows step details for failed jobs
 func (s *StreamingPrettyRenderer) showJobDetails(job *jobInfo) {
+	// Then show step details
 	for _, step := range job.steps {
 		var stepEmoji string
 		switch step.status {
@@ -323,12 +427,14 @@ func (s *StreamingPrettyRenderer) showJobDetails(job *jobInfo) {
 			stepEmoji = "❓"
 		}
 		fmt.Fprintf(s.out, "    %s %s (%s)\n", stepEmoji, step.name, formatDuration(step.duration))
+		s.totalLinesPrinted++
 		
 		// Show stderr for failed steps with better formatting
 		if step.status == "failed" {
 			// Show the command that failed first
 			if step.command != "" {
 				fmt.Fprintf(s.out, "      Command: %s\n", step.command)
+				s.totalLinesPrinted++
 			}
 			
 			// Combine stdout and stderr for RSpec parsing
@@ -336,6 +442,7 @@ func (s *StreamingPrettyRenderer) showJobDetails(job *jobInfo) {
 			cleanedOutput := cleanErrorOutput(combinedOutput)
 			if cleanedOutput != "" {
 				fmt.Fprintf(s.out, "%s\n", indent(cleanedOutput, "      "))
+				s.totalLinesPrinted++
 			}
 		}
 	}
@@ -343,36 +450,21 @@ func (s *StreamingPrettyRenderer) showJobDetails(job *jobInfo) {
 
 // RenderSummary shows the final summary.
 func (s *StreamingPrettyRenderer) RenderSummary(summary report.Summary) error {
-	fmt.Fprintf(s.out, "SUMMARY: %d passed, %d failed, %d skipped (%s)\n", summary.Passed, summary.Failed, summary.Skipped, formatDuration(summary.Duration))
-	return nil
+    // Ensure we start summary on a fresh line
+    fmt.Fprint(s.out, "\n")
+    fmt.Fprintf(s.out, "SUMMARY: %d passed, %d failed, %d skipped (%s)\n", summary.Passed, summary.Failed, summary.Skipped, formatDuration(summary.Duration))
+    return nil
 }
 
 // StartTimer starts a background timer that updates running jobs with live elapsed time
 // Optional timer control interface
 func (s *StreamingPrettyRenderer) StartTimer() {
-    if s.stopTimer != nil {
-        return
-    }
-    s.stopTimer = make(chan struct{})
-    go func() {
-        ticker := time.NewTicker(1 * time.Second)
-        defer ticker.Stop()
-        for {
-            select {
-            case <-ticker.C:
-                s.updateRunningJobs()
-            case <-s.stopTimer:
-                return
-            }
-        }
-    }()
+    // Disabled for now - timer was causing duplicate lines
+    // TODO: Fix timer to update in place without creating new lines
 }
 
 func (s *StreamingPrettyRenderer) StopTimer() {
-    if s.stopTimer != nil {
-        close(s.stopTimer)
-        s.stopTimer = nil
-    }
+    // Timer disabled for now
 }
 
 // updateRunningJobs updates all running jobs with current elapsed time
@@ -396,12 +488,17 @@ func (s *StreamingPrettyRenderer) updateRunningJobs() {
 			if job.status == "pending" {
 				fmt.Fprintf(s.out, "\033[K") // Clear line
 				fmt.Fprintf(s.out, "⏳ %s\n", job.name)
-            } else if job.status == "running" {
+			} else if job.status == "running" {
 				elapsed := time.Since(job.startTime)
 				fmt.Fprintf(s.out, "\033[K") // Clear line
 				fmt.Fprintf(s.out, "🟢 %s (%s)\n", job.name, formatDuration(elapsed))
 			} else {
 				// Job is complete, show final status
+				// Skip failed jobs that already showed detailed failure info to avoid duplication
+				if job.status == "failed" && job.detailsShown {
+					continue
+				}
+				
 				var emoji string
 				switch job.status {
 				case "passed":
