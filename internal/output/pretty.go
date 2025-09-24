@@ -313,8 +313,6 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 	return nil
 }
 
-// isTerminal is a placeholder; in production we may gate ANSI behavior on TTY.
-func isTerminal() bool { return true }
 
 // updateJobLineInPlace redraws all job lines in place
 func (s *StreamingPrettyRenderer) updateJobLineInPlace() {
