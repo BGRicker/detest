@@ -316,8 +316,8 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 // isTerminal is a placeholder; in production we may gate ANSI behavior on TTY.
 func isTerminal() bool { return true }
 
-// updateJobLineInPlace updates a single job line in place
-func (s *StreamingPrettyRenderer) updateJobLineInPlace(_ *jobInfo) {
+// updateJobLineInPlace redraws all job lines in place
+func (s *StreamingPrettyRenderer) updateJobLineInPlace() {
     // Redraw the entire block deterministically.
     // 1) Move cursor up by number of jobs
     totalJobs := 0
