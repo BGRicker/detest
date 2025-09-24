@@ -72,10 +72,10 @@ func TestRunCommandExecuteFailure(t *testing.T) {
 	}
 
 	output := out.String()
-	if !strings.Contains(output, "✓ Hello Step") {
+	if !strings.Contains(output, "✅ Hello Step") {
 		t.Fatalf("expected success marker for first step, got %q", output)
 	}
-	if !strings.Contains(output, "✗ Failing Step") {
+	if !strings.Contains(output, "❌ Failing Step") {
 		t.Fatalf("expected failure marker, got %q", output)
 	}
 	if !strings.Contains(output, "SUMMARY: 1 passed, 1 failed, 0 skipped") {
