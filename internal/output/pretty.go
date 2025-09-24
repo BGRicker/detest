@@ -349,41 +349,6 @@ func (s *StreamingPrettyRenderer) updateJobLineInPlace() {
     // Cursor naturally ends one line below the block after printing \n each row
 }
 
-// overwriteJobLine rewrites one job line in-place with the given emoji and optional duration
-func (s *StreamingPrettyRenderer) overwriteJobLine(job *jobInfo, emoji string, withDuration bool) {
-    // Determine emoji based on job status if not provided
-    if emoji == "" {
-        switch job.status {
-        case "passed":
-            emoji = "✅"
-        case "failed":
-            emoji = "❌"
-        case "running":
-            emoji = "🟢"
-        case "pending":
-            emoji = "⏳"
-        case "skipped":
-            emoji = "⏭️"
-        default:
-            emoji = "❓"
-        }
-    }
-    
-    linesUp := s.totalLinesPrinted - job.lineNumber - 1
-    for j := 0; j < linesUp; j++ {
-        fmt.Fprintf(s.out, "\033[1A")
-    }
-    fmt.Fprintf(s.out, "\033[2K\r")
-    if withDuration {
-        fmt.Fprintf(s.out, "%s %s (%s)\n", emoji, job.name, formatDuration(job.duration))
-    } else {
-        fmt.Fprintf(s.out, "%s %s\n", emoji, job.name)
-    }
-    for j := 0; j < linesUp; j++ {
-        fmt.Fprintf(s.out, "\033[1B")
-    }
-}
-
 // updateJobLine updates the job status line in place
 func (s *StreamingPrettyRenderer) updateJobLine(job *jobInfo) {
 	var emoji string
