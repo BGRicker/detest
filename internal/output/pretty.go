@@ -198,10 +198,7 @@ func (s *StreamingPrettyRenderer) InitializeAllJobs(workflows []provider.Workflo
 				lineNumber: s.totalLinesPrinted, // Track which line this job is on
 			}
 			
-			// Set initial status (first job starts running, others pending)
-            // First job is running; others pending. Do NOT call StartJob again for the
-            // first job or we will double-print. We only change state here, the line
-            // is already printed below.
+            // Set first job to "running" and others to "pending"; first job's line is already printed.
             if s.totalLinesPrinted == 0 {
                 jobInfo.status = "running"
                 jobInfo.startTime = time.Now()
@@ -214,7 +211,7 @@ func (s *StreamingPrettyRenderer) InitializeAllJobs(workflows []provider.Workflo
                 fmt.Fprintf(s.out, "⏳ %s\n", job.Name)
             }
             // We just printed exactly one line for this job
-            s.totalLinesPrinted = s.totalLinesPrinted + 1
+            s.totalLinesPrinted++
 			
 			workflow.jobs = append(workflow.jobs, jobInfo)
 		}
@@ -316,11 +313,8 @@ func (s *StreamingPrettyRenderer) CompleteJob() error {
 	return nil
 }
 
-func isTerminal() bool {
-	// Simple check - always return true for now
-	// The issue might be elsewhere
-	return true
-}
+// isTerminal is a placeholder; in production we may gate ANSI behavior on TTY.
+func isTerminal() bool { return true }
 
 // updateJobLineInPlace updates a single job line in place
 func (s *StreamingPrettyRenderer) updateJobLineInPlace(_ *jobInfo) {
